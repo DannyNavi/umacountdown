@@ -2,18 +2,20 @@ import { useEffect, useState } from "react";
 import clocks from "./images/clocks.jpeg"
 import sadkita from "./images/sadkita.png"
 import helios from "./images/helios.png"
-
+import shakur from "./images/shakur.png"
 
 const dates = {
   GrandLive: "2026-07-24T22:00:00Z",
   Maruzensky: "2026-07-01T22:00:00Z",
-  DaitakuHelios:"2026-11-01T22:00:00Z"
+  DaitakuHelios:"2026-11-01T22:00:00Z",
+  AirShakur:"2026-06-18T22:00:00Z"
 };
 
 const events = {
   GrandLive: "Grand Live",
   Maruzensky: "Maruzensky and Nakayama Festa",
-  DaitakuHelios: "Daitaku Helios"
+  DaitakuHelios: "Daitaku Helios",
+  AirShakur: "Air Shakur"
 };
 
 export default function Countdown() {
@@ -78,6 +80,12 @@ export default function Countdown() {
     {target == "DaitakuHelios" && 
       <div>
         <img src={helios} height="400px"/>
+      </div>
+    }
+
+    {target == "AirShakur" && 
+      <div>
+        <img src={shakur} height="400px"/>
       </div>
     }
 
