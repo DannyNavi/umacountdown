@@ -29,7 +29,7 @@ export default function Countdown() {
       const diff = end - now;
 
       if (diff <= 0) {
-        setRemaining("Grand Live is here!");
+        setRemaining(events[target] + " is here!");
         return;
       }
 
