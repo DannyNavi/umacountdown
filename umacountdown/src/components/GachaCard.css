@@ -1,0 +1,22 @@
+.display-card-container{
+    position: relative;
+    display: inline-block;
+}
+
+.display-card{
+    display: block;
+    border-radius: 10px;
+}
+
+.type_icon{
+    position: absolute;
+
+    top: 0;
+    right: 0;
+}
+
+.rarity_string{
+    position: absolute;
+    top: 0;
+    left: 0;
+}
