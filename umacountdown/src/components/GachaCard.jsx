@@ -9,6 +9,8 @@ function GachaCard({ banner, viewMode }) {
 
   const gametoraUmaURL = "https://gametora.com/images/umamusume/characters/chara_stand_"
   const gametoraSupportURL = "https://media.gametora.com/umamusume/supports/full/"
+  const [rarityURL, setRarityURL] = useState(0)
+
 
   return (
     <div className="pickup-grid">
@@ -19,12 +21,16 @@ function GachaCard({ banner, viewMode }) {
           {viewMode === "umas" && pickup.type == null &&(
             <>
               <p>{pickup.title_en}</p>
+              <div className="character-container">
+              <span>{"⭐".repeat(pickup.default_rarity)}</span>
+
               <img
                 src={gametoraUmaURL + pickup.chara_id + "_" + pickup.available_skill_set_id + ".png"}
                 alt={pickup.chara_data.name_en}
                 width={100}
               />
               <p>{pickup.chara_data.name_en}</p>
+              </div>
             </>
           )}
 
@@ -37,12 +43,11 @@ function GachaCard({ banner, viewMode }) {
                   src={pickup.type_icon_url}
                   width={25}
                 />
-                {pickup.rarity_string == "SSR" && 
                 <img
                   className="rarity_string"
-                  src =" https://gametora.com/images/umamusume/icons/utx_txt_rarity_03.png"
+                  src ={" https://gametora.com/images/umamusume/icons/utx_txt_rarity_0" + pickup.rarity_string.length.toString() +  ".png"}
                   width={40}
-                />}
+                />
                 <img
                   className="display-card"
                   src={gametoraSupportURL + pickup.id + ".png"}

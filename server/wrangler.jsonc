@@ -1,0 +1,61 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "umacountdown",
+	"main": "src/index.js",
+	"compatibility_date": "2026-06-28",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"rules": [
+		{
+			"type": "Text",
+			"globs": ["**/*.txt"],
+			"fallthrough": true
+		}
+	],
+	"observability": {
+		"enabled": false,
+		"head_sampling_rate": 1,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"persist": true,
+			"invocation_logs": true
+		},
+		"traces": {
+			"enabled": false,
+			"persist": true,
+			"head_sampling_rate": 1
+		}
+	},
+	"assets": {
+		"directory": "../umacountdown/dist",
+		"not_found_handling": "single-page-application"
+	},
+	// Local preview works without a real remote namespace id.
+	// For production: wrangler kv namespace create OSHI_WARS_KV
+	// then replace id with the returned namespace id.
+	"kv_namespaces": [
+		{
+			"binding": "OSHI_WARS_KV",
+			"id": "3ec91fbb1611479aa1b55fcd5347f1c0",
+			"remote": true
+		}
+	],
+
+	// Strongly-consistent tournament state (fixes reset races with KV)
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "OSHI_WARS_DO",
+				"class_name": "OshiWarsStore"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "oshi-wars-do-v1",
+			"new_sqlite_classes": ["OshiWarsStore"]
+		}
+	]
+}

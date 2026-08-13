@@ -12,7 +12,7 @@ function CountdownTimer({ targetDate, eventName }) {
       const diff = end - now;
 
       if (diff <= 0) {
-        setRemaining(`${eventName} is here!`);
+        setRemaining(`The wait is over!`);
         return;
       }
 
@@ -34,7 +34,6 @@ function CountdownTimer({ targetDate, eventName }) {
 
   return (
     <div className="countdown">
-      <h2>{eventName}</h2>
       <h1>{remaining}</h1>
       <p>Starts: {new Date(targetDate).toLocaleString()}</p>
     </div>

@@ -5,15 +5,26 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "cd ../umacountdown && npm install && npm run build",
+    "deploy": "npm run build && wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "node index.js",
+    "server": "nodemon src/index.js",
+    "nodedev": "nodemon src/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@cloudflare/vite-plugin": "^1.42.3",
     "cors": "^2.8.6",
     "csv-parse": "^7.0.0",
     "csv-parser": "^3.2.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "hono": "^4.12.27"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "wrangler": "^4.105.0"
   }
 }

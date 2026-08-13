@@ -1,0 +1,46 @@
+.DocLinkContainer{
+    display: flex;
+}
+
+.DocLinkContainer h2 {
+    margin: 0;
+    margin-right: 1em;
+    margin-left: 1em;
+}
+
+.external-link {
+    display: flex;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+}
+
+body .Schwarma-Container{
+    background-image: url(https://i.redd.it/9r3bxk1rz19g1.jpeg);
+    background-size: cover;
+    background-position: center;  
+    background-repeat: no-repeat;  
+    background-size: cover;   
+    min-height: 50em;
+}
+
+.Schwarma-Container h1{
+    color: skyblue;
+    background-color: purple;
+    width: 50%;
+    opacity: 50%;
+    padding-top: 10px;
+    padding-bottom: 13px;
+    margin-top: 0;
+}
+
+.Schwarma-Container h2{
+    color: orange;
+    font-weight: 100px;
+    background-color: beige;
+    opacity: 77%;
+}
+
+.Schwarma-Container img{
+    opacity: 80%;
+}
