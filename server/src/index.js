@@ -326,7 +326,7 @@ async function lookupPracticePartner(apiKey, partnerId) {
         body: {
           ...startBody,
           error:
-            "uma.moe rejected the API key. Set `key` in server/.dev.vars (see .dev.vars.example).",
+            "uma.moe rejected the API key. Set `key` in server/.env or server/.dev.vars (see .env.example).",
         },
       };
     }
@@ -360,7 +360,7 @@ app.get("/api/v4/practice", async (c) => {
 
   if (!apiKey) {
     return c.json(
-      { error: "uma.moe API key not configured. Set key in server/.dev.vars" },
+      { error: "uma.moe API key not configured. Set key in server/.env or server/.dev.vars" },
       503
     );
   }

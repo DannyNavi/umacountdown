@@ -7,7 +7,8 @@
   "scripts": {
     "build": "cd ../umacountdown && npm install && npm run build",
     "deploy": "npm run build && wrangler deploy",
-    "dev": "wrangler dev",
+    "predev": "node --input-type=module -e \"import fs from 'node:fs'; if (!fs.existsSync('.dev.vars') && fs.existsSync('.env')) fs.copyFileSync('.env', '.dev.vars');\"",
+    "dev": "wrangler dev --local",
     "start": "node index.js",
     "server": "nodemon src/index.js",
     "nodedev": "nodemon src/index.js"
