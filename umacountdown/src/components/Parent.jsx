@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { e as getCharaByBaseId } from "../../data.js";
 import "./Parent.css";
+
+const STAT_FACTORS = {
+  1: "Speed",
+  2: "Stamina",
+  3: "Power",
+  4: "Guts",
+  5: "Wit",
+  10: "Speed",
+  20: "Stamina",
+  30: "Power",
+  40: "Guts",
+  50: "Wit",
+};
 
 function stars(count) {
   const n = Number(count);
@@ -8,14 +22,22 @@ function stars(count) {
   return "★".repeat(Math.min(5, Math.max(1, Math.round(n))));
 }
 
-function factorLabel(value) {
+function charaNameFromId(cardId) {
+  if (cardId == null || cardId === "") return null;
+  const numeric = Number(cardId);
+  if (!Number.isFinite(numeric)) return null;
+  const base = Math.floor(numeric / 100);
+  return getCharaByBaseId(String(base))?.name || null;
+}
+
+function decodeSpark(value) {
   if (value == null) return null;
-  if (typeof value === "string" || typeof value === "number") return String(value);
   if (typeof value === "object") {
     const name =
       value.name ||
       value.factor_name ||
       value.label ||
+      charaNameFromId(value.id ?? value.factor_id) ||
       value.id ||
       value.factor_id;
     const star = value.star ?? value.stars ?? value.level;
@@ -27,7 +49,17 @@ function factorLabel(value) {
       return String(value);
     }
   }
-  return String(value);
+
+  const raw = String(value);
+  if (!/^\d+$/.test(raw) || raw.length < 2) return raw;
+  const level = Number(raw.slice(-1));
+  const factorId = raw.slice(0, -1);
+  const starText = stars(level);
+  const statName = STAT_FACTORS[Number(factorId)];
+  if (statName) return `${starText} ${statName}`.trim();
+  const charaName = charaNameFromId(factorId);
+  if (charaName) return `${starText} ${charaName}`.trim();
+  return starText ? `${starText} ${factorId}` : raw;
 }
 
 function asList(value) {
@@ -84,7 +116,7 @@ function pickTrainerName(payload, inheritance) {
 }
 
 function FactorRow({ title, values, tone }) {
-  const chips = asList(values).map(factorLabel).filter(Boolean);
+  const chips = asList(values).map(decodeSpark).filter(Boolean);
   if (!chips.length) return null;
   return (
     <div className="Parent-section">
@@ -105,19 +137,26 @@ function PartnerCard({ payload }) {
   if (!inheritance) return null;
 
   const trainerName = pickTrainerName(payload, inheritance);
+  const accountId =
+    inheritance.account_id ||
+    payload?.result?.account_id ||
+    payload?.account_id ||
+    null;
   const rarity = inheritance.parent_rarity ?? inheritance.rarity;
   const cardId = inheritance.main_parent_id ?? inheritance.card_id;
   const charaName =
     inheritance.chara_name ||
     inheritance.character_name ||
     inheritance.name ||
-    (cardId != null ? `Card ${cardId}` : "Practice partner");
+    charaNameFromId(cardId) ||
+    (cardId != null ? `Card ${cardId}` : trainerName || "Practice partner");
 
   return (
     <article className="Parent-card">
       <div className="Parent-card-header">
         <h2>{charaName}</h2>
         {trainerName ? <span className="Parent-meta">{trainerName}</span> : null}
+        {accountId ? <span className="Parent-meta">ID {accountId}</span> : null}
         {rarity ? <span className="Parent-stars">{stars(rarity)}</span> : null}
       </div>
 
@@ -126,13 +165,13 @@ function PartnerCard({ payload }) {
       <FactorRow title="Green" values={inheritance.main_green_factors ?? inheritance.green_sparks} tone="green" />
       <FactorRow title="White" values={inheritance.main_white_factors ?? inheritance.white_sparks} tone="white" />
 
-      {(inheritance.parent_left_id || inheritance.left_blue_factors) && (
+      {(inheritance.parent_left_id || inheritance.left_blue_factors || inheritance.left_white_factors) && (
         <div className="Parent-section">
-          <h3>P1 {inheritance.parent_left_id ? `(${inheritance.parent_left_id})` : ""}</h3>
+          <h3>P1 {inheritance.parent_left_id ? `(${charaNameFromId(inheritance.parent_left_id) || inheritance.parent_left_id})` : ""}</h3>
           <div className="Parent-chips">
             {asList(inheritance.left_blue_factors)
               .concat(asList(inheritance.left_pink_factors), asList(inheritance.left_green_factors), asList(inheritance.left_white_factors))
-              .map(factorLabel)
+              .map(decodeSpark)
               .filter(Boolean)
               .map((chip, index) => (
                 <span className="Parent-chip" key={`p1-${chip}-${index}`}>
@@ -143,13 +182,13 @@ function PartnerCard({ payload }) {
         </div>
       )}
 
-      {(inheritance.parent_right_id || inheritance.right_blue_factors) && (
+      {(inheritance.parent_right_id || inheritance.right_blue_factors || inheritance.right_white_factors) && (
         <div className="Parent-section">
-          <h3>P2 {inheritance.parent_right_id ? `(${inheritance.parent_right_id})` : ""}</h3>
+          <h3>P2 {inheritance.parent_right_id ? `(${charaNameFromId(inheritance.parent_right_id) || inheritance.parent_right_id})` : ""}</h3>
           <div className="Parent-chips">
             {asList(inheritance.right_blue_factors)
               .concat(asList(inheritance.right_pink_factors), asList(inheritance.right_green_factors), asList(inheritance.right_white_factors))
-              .map(factorLabel)
+              .map(decodeSpark)
               .filter(Boolean)
               .map((chip, index) => (
                 <span className="Parent-chip" key={`p2-${chip}-${index}`}>

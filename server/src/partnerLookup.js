@@ -6,9 +6,13 @@ export { UMA_MOE_ORIGIN, PARTNER_LOOKUP_TIMEOUT_MS };
 export function umaHeaders(apiKey, extra = {}) {
   return {
     "X-API-Key": apiKey,
-    Accept: "application/json",
+    Accept: "application/json, text/plain, */*",
     ...extra,
   };
+}
+
+function hasTaskId(taskId) {
+  return taskId != null && String(taskId).trim() !== "" && Number(taskId) > 0;
 }
 
 export function sleep(ms) {
@@ -26,6 +30,8 @@ export function looksLikeInheritance(value) {
     value.card_id != null ||
     Array.isArray(value.main_white_factors) ||
     Array.isArray(value.blue_sparks) ||
+    Array.isArray(value.pink_sparks) ||
+    Array.isArray(value.green_sparks) ||
     Array.isArray(value.white_sparks)
   );
 }
@@ -397,7 +403,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   let found = extractFound(startBody);
   let streamBody = null;
 
-  if (startBody.task_id != null && !found) {
+  if (hasTaskId(startBody.task_id) && !found) {
     const streamed = await waitForPartnerStream(startBody.task_id);
     streamBody = streamed.body;
     found = streamed.found || extractFound(streamed.body) || found;
@@ -438,6 +444,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       ...startBody,
       trainer_name: found.trainer_name,
       result: {
+        ...(startBody.result && typeof startBody.result === "object"
+          ? startBody.result
+          : {}),
         inheritance: found.inheritance,
         trainer_name: found.trainer_name,
       },
