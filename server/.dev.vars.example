@@ -2,7 +2,7 @@
 # Production: wrangler secret put OSHI_ADMIN_PASSWORD
 #             wrangler secret put OSHI_ADMIN_TOKEN
 #             wrangler secret put GEMINI_API_KEY   (optional AI commentary)
-#             wrangler secret put key             (uma.moe API, if used)
+#             wrangler secret put key             (uma.moe API; required for /parent lookup)
 
 OSHI_ADMIN_USERNAME=admin
 OSHI_ADMIN_PASSWORD=change-me
@@ -10,4 +10,6 @@ OSHI_ADMIN_TOKEN=change-me-to-a-long-random-string
 
 # Optional
 # GEMINI_API_KEY=
-# key=
+
+# uma.moe API key (X-API-Key). Used by /api/v4/circles and /api/v4/practice.
+# key=uma_k_your_key_here
