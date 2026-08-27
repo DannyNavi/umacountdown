@@ -48,6 +48,38 @@ test("extractFound treats saved partner rows as inheritance", () => {
   assert.equal(found.inheritance.main_parent_id, 100401);
 });
 
+test("extractFound reads uma.moe immediate-complete POST payloads", () => {
+  const found = extractFound({
+    task_id: null,
+    status: "completed",
+    will_persist: false,
+    result: {
+      account_id: "711269443937",
+      trainer_name: "DannyN",
+      follower_num: null,
+      last_updated: null,
+      inheritance: {
+        account_id: "711269443937",
+        affinity_score: 0,
+        blue_sparks: [201, 401, 302],
+        blue_stars_sum: 4,
+        green_sparks: [10200102, 10260202, 10040201],
+        green_stars_sum: 5,
+        label: null,
+        left_blue_factors: 401,
+        left_green_factors: 10260202,
+        left_pink_factors: 3202,
+        left_white_count: 8,
+        left_white_factors: [1000601, 2000202],
+        main_parent_id: 102001,
+      },
+    },
+  });
+  assert.equal(found.trainer_name, "DannyN");
+  assert.deepEqual(found.inheritance.blue_sparks, [201, 401, 302]);
+  assert.equal(found.inheritance.main_parent_id, 102001);
+});
+
 test("parseSseBlock merges split JSON data lines", () => {
   const parsed = parseSseBlock(
     [
@@ -208,4 +240,44 @@ test("lookup returns 502 instead of an empty success when nothing is found", asy
   assert.equal(result.status, 502);
   assert.match(result.body.error, /Practice ID may have expired/);
   assert.equal(result.body.result.inheritance, null);
+});
+
+test("lookup returns inheritance from an immediate-complete POST and skips the stream", async () => {
+  const calls = [];
+  const payload = {
+    task_id: null,
+    status: "completed",
+    will_persist: false,
+    result: {
+      account_id: "711269443937",
+      trainer_name: "DannyN",
+      follower_num: null,
+      last_updated: null,
+      inheritance: {
+        account_id: "711269443937",
+        blue_sparks: [201, 401, 302],
+        green_sparks: [10200102, 10260202, 10040201],
+        main_parent_id: 102001,
+      },
+    },
+  };
+  const fetchImpl = async (url) => {
+    calls.push(String(url).replace("https://uma.moe", ""));
+    return jsonResponse(payload);
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "966998386", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 200);
+  assert.deepEqual(calls, ["/api/v4/partner/lookup"]);
+  assert.equal(result.body.trainer_name, "DannyN");
+  assert.equal(result.body.result.account_id, "711269443937");
+  assert.equal(result.body.result.inheritance.main_parent_id, 102001);
+  assert.deepEqual(result.body.inheritance.blue_sparks, [201, 401, 302]);
 });
