@@ -37,13 +37,40 @@ function asList(value) {
 
 function pickInheritance(payload) {
   if (!payload || typeof payload !== "object") return null;
-  return (
-    payload.inheritance ||
-    payload.result?.inheritance ||
-    payload.stream?.inheritance ||
-    payload.data?.inheritance ||
-    null
-  );
+  const candidates = [
+    payload.inheritance,
+    payload.result?.inheritance,
+    payload.result,
+    payload.stream?.inheritance,
+    payload.data?.inheritance,
+    payload.saved,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "object") continue;
+    if (Array.isArray(candidate)) {
+      const row = candidate.find(
+        (item) =>
+          item &&
+          (item.main_parent_id != null ||
+            item.main_blue_factors != null ||
+            item.parent_rarity != null ||
+            Array.isArray(item.blue_sparks))
+      );
+      if (row) return row;
+      continue;
+    }
+    if (
+      candidate.main_parent_id != null ||
+      candidate.main_blue_factors != null ||
+      candidate.parent_rarity != null ||
+      candidate.card_id != null ||
+      Array.isArray(candidate.main_white_factors) ||
+      Array.isArray(candidate.blue_sparks)
+    ) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function pickTrainerName(payload, inheritance) {
@@ -94,10 +121,10 @@ function PartnerCard({ payload }) {
         {rarity ? <span className="Parent-stars">{stars(rarity)}</span> : null}
       </div>
 
-      <FactorRow title="Blue" values={inheritance.main_blue_factors} tone="blue" />
-      <FactorRow title="Pink" values={inheritance.main_pink_factors} tone="pink" />
-      <FactorRow title="Green" values={inheritance.main_green_factors} tone="green" />
-      <FactorRow title="White" values={inheritance.main_white_factors} tone="white" />
+      <FactorRow title="Blue" values={inheritance.main_blue_factors ?? inheritance.blue_sparks} tone="blue" />
+      <FactorRow title="Pink" values={inheritance.main_pink_factors ?? inheritance.pink_sparks} tone="pink" />
+      <FactorRow title="Green" values={inheritance.main_green_factors ?? inheritance.green_sparks} tone="green" />
+      <FactorRow title="White" values={inheritance.main_white_factors ?? inheritance.white_sparks} tone="white" />
 
       {(inheritance.parent_left_id || inheritance.left_blue_factors) && (
         <div className="Parent-section">
