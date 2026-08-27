@@ -319,6 +319,17 @@ async function lookupPracticePartner(apiKey, partnerId) {
 
   const startBody = await readJsonSafe(startRes);
   if (!startRes.ok) {
+    if (startBody.error === "invalid_api_key") {
+      return {
+        ok: false,
+        status: startRes.status,
+        body: {
+          ...startBody,
+          error:
+            "uma.moe rejected the API key. Set `key` in server/.dev.vars (see .dev.vars.example).",
+        },
+      };
+    }
     return { ok: false, status: startRes.status, body: startBody };
   }
 
