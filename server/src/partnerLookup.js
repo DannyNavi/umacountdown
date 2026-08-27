@@ -117,14 +117,25 @@ function rowIds(row) {
     .map((value) => String(value));
 }
 
-export function pickSavedPartner(payload, partnerId, taskId = null) {
+export function pickSavedPartner(payload, partnerId, taskId = null, options = {}) {
   const list = savedList(payload);
   if (!list.length) return null;
   const ids = new Set(
     [partnerId, taskId].filter((value) => value != null && value !== "").map(String)
   );
+  const match = list.find((row) => rowIds(row).some((id) => ids.has(id)));
+  if (match) return match;
+  if (!options.allowLatest) return null;
   return (
-    list.find((row) => rowIds(row).some((id) => ids.has(id))) ?? null
+    [...list].sort((a, b) => {
+      const aKey =
+        Date.parse(a.last_updated || a.updated_at || a.created_at || "") ||
+        Number(a.inheritance_id || a.id || 0);
+      const bKey =
+        Date.parse(b.last_updated || b.updated_at || b.created_at || "") ||
+        Number(b.inheritance_id || b.id || 0);
+      return bKey - aKey;
+    })[0] ?? null
   );
 }
 
@@ -242,12 +253,12 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return { ok: res.ok, status: res.status, body };
   }
 
-  async function fetchSavedPartner(taskId = null) {
+  async function fetchSavedPartner(taskId = null, options = {}) {
     for (let attempt = 0; attempt < savedAttempts; attempt++) {
       if (attempt > 0 && retryDelayMs) await sleepImpl(retryDelayMs);
       const saved = await umaGetJson("/api/v4/partner/saved");
       if (!saved.ok) continue;
-      const row = pickSavedPartner(saved.body, partnerId, taskId);
+      const row = pickSavedPartner(saved.body, partnerId, taskId, options);
       const found = extractFound(row);
       if (found) return found;
     }
@@ -306,6 +317,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     let lastData = {};
     let found = null;
     let terminal = null;
+    let completedAt = 0;
 
     const consumeBlock = (block) => {
       if (!block.trim()) return;
@@ -327,6 +339,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         };
       } else if (status === "completed" || parsed.event === "completed") {
         terminal = { ok: true, status: 200, body: lastData };
+        completedAt = completedAt || Date.now();
       }
     };
 
@@ -338,9 +351,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         const parts = buffer.split(/\r?\n\r?\n/);
         buffer = parts.pop() ?? "";
         for (const block of parts) consumeBlock(block);
-        // Stop on any terminal event. Inheritance may live on /saved or the
-        // task payload instead of the completed SSE frame.
-        if (terminal) break;
+        if (terminal && !terminal.ok) break;
+        if (terminal?.ok && found) break;
+        if (terminal?.ok && completedAt && Date.now() - completedAt > 2500) break;
       }
       buffer += decoder.decode();
       consumeBlock(buffer);
@@ -377,14 +390,18 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     };
   }
 
-  const startRes = await fetchImpl(`${origin}/api/v4/partner/lookup`, {
-    method: "POST",
-    headers: headers({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ partner_id: partnerId, label: null }),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  async function postLookup() {
+    return fetchImpl(`${origin}/api/v4/partner/lookup`, {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ partner_id: partnerId, label: null }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  }
 
-  const startBody = await readJsonSafe(startRes);
+  const startRes = await postLookup();
+
+  let startBody = await readJsonSafe(startRes);
   if (!startRes.ok) {
     if (startBody.error === "invalid_api_key") {
       return {
@@ -411,13 +428,29 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       found = await fetchTaskResult(startBody.task_id);
     }
     if (!found) {
-      found = await fetchSavedPartner(startBody.task_id);
+      found = await fetchSavedPartner(startBody.task_id, {
+        allowLatest: Boolean(streamed.ok || startBody.will_persist),
+      });
+    }
+    if (!found && streamed.ok) {
+      // 9-digit Practice IDs are queued. After the job finishes, uma.moe
+      // often serves the same ID as an immediate-complete POST (as the
+      // browser does), keyed by the trainer account rather than the share ID.
+      const retryRes = await postLookup();
+      const retryBody = await readJsonSafe(retryRes);
+      const retryFound = extractFound(retryBody);
+      if (retryFound) {
+        found = retryFound;
+        startBody = retryBody;
+      }
     }
     if (!found && !streamed.ok) return streamed;
   }
 
   if (!found) {
-    found = await fetchSavedPartner(startBody.task_id);
+    found = await fetchSavedPartner(startBody.task_id, {
+      allowLatest: Boolean(startBody.will_persist),
+    });
   }
 
   if (!found) {
