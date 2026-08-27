@@ -122,6 +122,22 @@ test("pickSavedPartner only returns a row that matches the requested id", () => 
     ).main_parent_id,
     9
   );
+  assert.equal(
+    pickSavedPartner(
+      [
+        { account_id: "111", main_parent_id: 1, last_updated: "2026-01-01T00:00:00Z" },
+        {
+          account_id: "711269443937",
+          main_parent_id: 102001,
+          last_updated: "2026-08-27T23:11:30Z",
+        },
+      ],
+      "966998386",
+      null,
+      { allowLatest: true }
+    ).account_id,
+    "711269443937"
+  );
 });
 
 function jsonResponse(body, status = 200) {
@@ -280,4 +296,95 @@ test("lookup returns inheritance from an immediate-complete POST and skips the s
   assert.equal(result.body.result.account_id, "711269443937");
   assert.equal(result.body.result.inheritance.main_parent_id, 102001);
   assert.deepEqual(result.body.inheritance.blue_sparks, [201, 401, 302]);
+});
+
+test("lookup uses the latest saved partner when a Practice ID does not match account_id", async () => {
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 9,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/9/stream") {
+      return sseResponse(
+        'event: completed\ndata: {"status":"completed","task_id":9}\n\n'
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([
+        {
+          account_id: "711269443937",
+          trainer_name: "DannyN",
+          main_parent_id: 102001,
+          blue_sparks: [201, 401, 302],
+          last_updated: "2026-08-27T23:11:30Z",
+        },
+      ]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "966998386", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.trainer_name, "DannyN");
+  assert.equal(result.body.inheritance.main_parent_id, 102001);
+});
+
+test("lookup retries POST after a queued Practice ID job finishes", async () => {
+  let posts = 0;
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      posts += 1;
+      if (posts === 1) {
+        return jsonResponse({
+          task_id: 9,
+          status: "pending",
+          will_persist: true,
+          result: { inheritance: null, trainer_name: null },
+        });
+      }
+      return jsonResponse({
+        task_id: null,
+        status: "completed",
+        will_persist: false,
+        result: {
+          account_id: "711269443937",
+          trainer_name: "DannyN",
+          inheritance: {
+            account_id: "711269443937",
+            blue_sparks: [201],
+            main_parent_id: 102001,
+          },
+        },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/9/stream") {
+      return sseResponse(
+        'event: completed\ndata: {"status":"completed","task_id":9}\n\n'
+      );
+    }
+    if (path === "/api/v4/partner/saved") return jsonResponse([]);
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "966998386", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(posts, 2);
+  assert.equal(result.body.result.account_id, "711269443937");
+  assert.equal(result.body.inheritance.main_parent_id, 102001);
 });
