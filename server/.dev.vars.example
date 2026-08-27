@@ -12,4 +12,6 @@ OSHI_ADMIN_TOKEN=change-me-to-a-long-random-string
 # GEMINI_API_KEY=
 
 # uma.moe API key (X-API-Key). Used by /api/v4/circles and /api/v4/practice.
+# For local: copy this file to .dev.vars, or put `key=...` in `.env`
+# (npm run dev copies .env → .dev.vars if .dev.vars is missing).
 # key=uma_k_your_key_here

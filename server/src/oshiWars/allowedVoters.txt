@@ -1,0 +1,2 @@
+# Voter whitelist for Oshi Wars (local / default empty).
+# Add one Discord user ID per line. Lines starting with # are ignored.
