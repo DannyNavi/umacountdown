@@ -1,0 +1,158 @@
+.Parent-Container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  text-align: left;
+}
+
+.Parent-Container h1 {
+  margin: 0 0 0.35rem;
+  color: inherit;
+  padding-top: 0;
+}
+
+.Parent-lead {
+  margin: 0 0 1.25rem;
+  color: var(--text);
+}
+
+.Parent-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.Parent-form input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+}
+
+.Parent-form button {
+  padding: 0.65rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.Parent-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.Parent-hint {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.Parent-status {
+  margin: 0 0 1rem;
+}
+
+.Parent-status.error {
+  color: #ef5350;
+}
+
+.Parent-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--code-bg);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.Parent-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.Parent-card-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.Parent-meta {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.Parent-stars {
+  color: #f5c518;
+  letter-spacing: 0.08em;
+}
+
+.Parent-section {
+  margin-top: 0.85rem;
+}
+
+.Parent-section h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.Parent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.Parent-chip {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--text-h);
+  font-size: 0.85rem;
+}
+
+.Parent-chip.blue {
+  background: rgba(9, 140, 219, 0.15);
+  border-color: rgba(9, 140, 219, 0.45);
+}
+
+.Parent-chip.pink {
+  background: rgba(219, 68, 126, 0.15);
+  border-color: rgba(219, 68, 126, 0.45);
+}
+
+.Parent-chip.green {
+  background: rgba(0, 158, 94, 0.15);
+  border-color: rgba(0, 158, 94, 0.45);
+}
+
+.Parent-chip.white {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border);
+}
+
+.Parent-json {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  text-align: left;
+  font: 0.8rem/140% var(--mono);
+  color: var(--text-h);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

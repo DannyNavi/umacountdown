@@ -9,6 +9,7 @@ import Schwarma from "./components/Schwarma"
 import Ozy from "./components/Ozy";
 import Shaz from "./components/Shaz";
 import Club from "./components/Club";
+import Parent from "./components/Parent";
 
 export default function App() {
 
@@ -24,6 +25,8 @@ export default function App() {
           <Route path="ozy" element={<Ozy/>}/>
           <Route path="shaz" element={<Shaz/>}/>
           <Route path="club" element={<Club/>}/>
+          <Route path="parent" element={<Parent/>}/>
+          <Route path="parent/:id" element={<Parent/>}/>
         </Routes>
       </BrowserRouter>
     </div>

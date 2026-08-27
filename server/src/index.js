@@ -202,6 +202,180 @@ app.get("/api/v4/circles", async (c) => {
   return c.json(await response.json());
 });
 
+const UMA_MOE_ORIGIN = "https://uma.moe";
+const PARTNER_LOOKUP_TIMEOUT_MS = 25000;
+
+function getUmaApiKey(env) {
+  return env?.key || env?.UMA_API_KEY || "";
+}
+
+function parseSseBlock(block) {
+  let eventName = "message";
+  const dataLines = [];
+  for (const line of block.split(/\r?\n/)) {
+    if (!line || line.startsWith(":")) continue;
+    if (line.startsWith("event:")) {
+      eventName = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+  const raw = dataLines.join("\n");
+  let data = {};
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { raw };
+    }
+  }
+  return { event: eventName, data };
+}
+
+async function readJsonSafe(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text };
+  }
+}
+
+async function waitForPartnerStream(apiKey, taskId) {
+  const streamRes = await fetch(
+    `${UMA_MOE_ORIGIN}/api/v4/partner/lookup/${encodeURIComponent(taskId)}/stream`,
+    {
+      headers: {
+        "X-API-Key": apiKey,
+        Accept: "text/event-stream",
+      },
+      signal: AbortSignal.timeout(PARTNER_LOOKUP_TIMEOUT_MS),
+    }
+  );
+
+  if (!streamRes.ok || !streamRes.body) {
+    const body = await readJsonSafe(streamRes);
+    return {
+      ok: false,
+      status: streamRes.status || 502,
+      body: body.error ? body : { error: "Lookup stream failed", ...body },
+    };
+  }
+
+  const reader = streamRes.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split(/\r?\n\r?\n/);
+      buffer = parts.pop() ?? "";
+      for (const block of parts) {
+        const parsed = parseSseBlock(block);
+        if (!parsed.event || parsed.event === "pending" || parsed.event === "processing") {
+          continue;
+        }
+        if (parsed.event === "completed") {
+          return { ok: true, status: 200, body: parsed.data };
+        }
+        if (parsed.event === "failed") {
+          return {
+            ok: false,
+            status: 502,
+            body: { error: parsed.data.error || "Lookup failed", ...parsed.data },
+          };
+        }
+        if (parsed.event === "timeout") {
+          return {
+            ok: false,
+            status: 504,
+            body: { error: "Lookup timed out", ...parsed.data },
+          };
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { ok: false, status: 504, body: { error: "Lookup stream ended without a result" } };
+}
+
+async function lookupPracticePartner(apiKey, partnerId) {
+  const startRes = await fetch(`${UMA_MOE_ORIGIN}/api/v4/partner/lookup`, {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ partner_id: partnerId, label: null }),
+    signal: AbortSignal.timeout(PARTNER_LOOKUP_TIMEOUT_MS),
+  });
+
+  const startBody = await readJsonSafe(startRes);
+  if (!startRes.ok) {
+    return { ok: false, status: startRes.status, body: startBody };
+  }
+
+  if (startBody.task_id == null) {
+    return { ok: true, status: 200, body: startBody };
+  }
+
+  const streamed = await waitForPartnerStream(apiKey, startBody.task_id);
+  if (!streamed.ok) return streamed;
+
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ...startBody,
+      result: startBody.result ?? {
+        inheritance: streamed.body.inheritance ?? null,
+        trainer_name: streamed.body.trainer_name ?? streamed.body.inheritance?.trainer_name ?? null,
+      },
+      stream: streamed.body,
+    },
+  };
+}
+
+app.get("/api/v4/practice", async (c) => {
+  const apiKey = getUmaApiKey(c.env);
+  const partnerId = (c.req.query("id") || "").trim();
+
+  if (!apiKey) {
+    return c.json(
+      { error: "uma.moe API key not configured. Set key in server/.dev.vars" },
+      503
+    );
+  }
+  if (!/^\d{9,12}$/.test(partnerId)) {
+    return c.json(
+      { error: "Enter a 9-digit Practice ID or 12-digit Trainer ID" },
+      400
+    );
+  }
+
+  try {
+    const result = await lookupPracticePartner(apiKey, partnerId);
+    return c.json(result.body, result.status);
+  } catch (err) {
+    const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError";
+    return c.json(
+      {
+        error: timedOut
+          ? "Lookup timed out"
+          : err?.message || "Failed to look up practice partner",
+      },
+      timedOut ? 504 : 502
+    );
+  }
+});
+
 // ----------------- OSHI WARS API -----------------
 
 function getOshiAdminToken(env) {

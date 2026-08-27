@@ -68,6 +68,13 @@ export default function HomePage(){
                     </Link>
                 </div>
 
+                <div className="LinkCard">
+                    <h2>Practice Partner</h2>
+                    <Link to="/parent">
+                        <img src="https://media.gametora.com/umamusume/characters/profile/1019.png"/>
+                    </Link>
+                </div>
+
 
 
             </div>
