@@ -241,7 +241,9 @@ app.get("/api/v4/resources/:name", async (c) => {
     return c.json({ error: "Unknown uma.moe resource" }, 404);
   }
   try {
-    return c.json(await readUmaResourceJson(name));
+    const body = await readUmaResourceJson(name);
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    return c.json(body);
   } catch (err) {
     return c.json(
       { error: err?.message || `Failed to load ${name}` },
@@ -252,6 +254,38 @@ app.get("/api/v4/resources/:name", async (c) => {
 
 function getUmaApiKey(env) {
   return env?.key || env?.UMA_API_KEY || "";
+}
+
+function practiceCacheTtlSeconds(partnerId) {
+  // 12-digit trainer IDs can change when they train a new uma.
+  // 9-digit practice IDs are a 24h snapshot.
+  return partnerId.length >= 12 ? 600 : 21600;
+}
+
+function practiceCacheKey(requestUrl, partnerId) {
+  const url = new URL(requestUrl);
+  url.search = "";
+  url.searchParams.set("id", partnerId);
+  return new Request(url.toString(), { method: "GET" });
+}
+
+async function matchPracticeCache(cacheKey) {
+  try {
+    if (typeof caches === "undefined" || !caches.default) return null;
+    return await caches.default.match(cacheKey);
+  } catch {
+    return null;
+  }
+}
+
+function putPracticeCache(c, cacheKey, response) {
+  try {
+    if (typeof caches === "undefined" || !caches.default) return;
+    const put = caches.default.put(cacheKey, response.clone());
+    if (c.executionCtx?.waitUntil) c.executionCtx.waitUntil(put);
+  } catch {
+    // Cache API is Cloudflare-only; ignore on Node.
+  }
 }
 
 app.get("/api/v4/practice", async (c) => {
@@ -271,9 +305,28 @@ app.get("/api/v4/practice", async (c) => {
     );
   }
 
+  const cacheKey = practiceCacheKey(c.req.url, partnerId);
+  const cached = await matchPracticeCache(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("X-Cache", "HIT");
+    return new Response(cached.body, { status: cached.status, headers });
+  }
+
   try {
     const result = await lookupPracticePartner(apiKey, partnerId);
-    return c.json(result.body, result.status);
+    const response = c.json(result.body, result.status);
+    if (result.ok && result.status === 200) {
+      response.headers.set(
+        "Cache-Control",
+        `public, max-age=${practiceCacheTtlSeconds(partnerId)}`
+      );
+      response.headers.set("X-Cache", "MISS");
+      putPracticeCache(c, cacheKey, response);
+    } else {
+      response.headers.set("Cache-Control", "no-store");
+    }
+    return response;
   } catch (err) {
     const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError";
     return c.json(
