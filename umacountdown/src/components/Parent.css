@@ -227,8 +227,21 @@
   padding: 0.08rem 0.28rem 0.08rem 0.22rem;
 }
 
+.Parent-insp-tile.blue {
+  background: #9fd4ff;
+}
+
+.Parent-insp-tile.pink {
+  background: #f7b3cc;
+}
+
+.Parent-insp-tile.green,
 .Parent-insp-tile.unique {
   background: var(--uma-pill-unique);
+}
+
+.Parent-insp-tile.white {
+  background: #eceae4;
 }
 
 .Parent-insp-tile.match {
