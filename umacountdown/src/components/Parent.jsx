@@ -271,6 +271,17 @@ export default function Parent() {
   const [factorById, setFactorById] = useState(() => new Map());
 
   useEffect(() => {
+    document.documentElement.classList.add("parent-page");
+    return () => {
+      document.documentElement.classList.remove("parent-page", "has-parent-result");
+    };
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("has-parent-result", Boolean(data));
+  }, [data]);
+
+  useEffect(() => {
     const controller = new AbortController();
     fetch("/api/v4/resources/factors", { signal: controller.signal })
       .then((res) => res.json())
