@@ -203,6 +203,53 @@ app.get("/api/v4/circles", async (c) => {
   return c.json(await response.json());
 });
 
+const UMA_RESOURCE_ORIGIN = "https://uma.moe/resources/current";
+const UMA_RESOURCE_NAMES = new Set(["factors", "skills"]);
+let umaResourceCache = new Map();
+
+async function readUmaResourceJson(name) {
+  const cached = umaResourceCache.get(name);
+  if (cached && Date.now() < cached.expires) return cached.body;
+
+  const res = await fetch(`${UMA_RESOURCE_ORIGIN}/${name}.json.gz`, {
+    headers: { Accept: "application/json, application/gzip, */*" },
+  });
+  if (!res.ok) {
+    throw new Error(`uma.moe resource ${name} returned ${res.status}`);
+  }
+
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const gzipped = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+  let text;
+  if (gzipped) {
+    const stream = new Response(bytes).body.pipeThrough(
+      new DecompressionStream("gzip")
+    );
+    text = await new Response(stream).text();
+  } else {
+    text = new TextDecoder().decode(bytes);
+  }
+
+  const body = JSON.parse(text);
+  umaResourceCache.set(name, { body, expires: Date.now() + CACHE_TIME });
+  return body;
+}
+
+app.get("/api/v4/resources/:name", async (c) => {
+  const name = c.req.param("name");
+  if (!UMA_RESOURCE_NAMES.has(name)) {
+    return c.json({ error: "Unknown uma.moe resource" }, 404);
+  }
+  try {
+    return c.json(await readUmaResourceJson(name));
+  } catch (err) {
+    return c.json(
+      { error: err?.message || `Failed to load ${name}` },
+      502
+    );
+  }
+});
+
 function getUmaApiKey(env) {
   return env?.key || env?.UMA_API_KEY || "";
 }
