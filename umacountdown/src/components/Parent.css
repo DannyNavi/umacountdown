@@ -199,13 +199,18 @@
   color: #fff;
 }
 
+.Parent-tab-caption {
+  margin: 0 0.55rem 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--uma-muted);
+}
+
 .Parent-insp-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.35rem 0.4rem;
   padding: 0 0.55rem 0.7rem;
-  max-height: 52vh;
-  overflow: auto;
 }
 
 .Parent-insp-tile {
@@ -328,9 +333,5 @@
 
   .Parent-details {
     margin-bottom: 0;
-  }
-
-  .Parent-insp-grid {
-    max-height: none;
   }
 }
