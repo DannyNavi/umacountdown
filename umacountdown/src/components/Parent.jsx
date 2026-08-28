@@ -73,8 +73,8 @@ function CharaPortrait({ cardId, name, variant = "stand" }) {
       className={className}
       src={src}
       alt={name ? `${name} portrait` : ""}
-      width={variant === "circle" ? 72 : 48}
-      height={variant === "circle" ? 72 : 48}
+      width={variant === "circle" ? 48 : 48}
+      height={variant === "circle" ? 48 : 48}
       onError={() => setFailed(true)}
     />
   );
@@ -187,23 +187,21 @@ function StarRow({ count }) {
   );
 }
 
-function InspirationGrid({ groups, factorById }) {
+function InspirationGrid({ groups, factorById, columns = 2 }) {
   const chips = collectSparks(groups, factorById);
   if (!chips.length) {
     return <p className="Parent-empty">No inspiration data.</p>;
   }
   return (
-    <div className="Parent-insp-grid">
+    <div className={`Parent-insp-grid cols-${columns}`}>
       {chips.map((chip, index) => (
         <div
           className={`Parent-insp-tile ${chip.tone}${chip.tone === "green" ? " unique" : ""}`}
           key={`${chip.tone}-${chip.name}-${index}`}
         >
           <span className={`Parent-insp-dot ${chip.tone}`} aria-hidden="true" />
-          <div className="Parent-insp-copy">
-            <span className="Parent-insp-name">{chip.name}</span>
-            <StarRow count={chip.stars} />
-          </div>
+          <span className="Parent-insp-name">{chip.name}</span>
+          <StarRow count={chip.stars} />
         </div>
       ))}
     </div>
@@ -237,8 +235,6 @@ function sparkGroups(prefix, inheritance) {
 
 function PartnerCard({ payload, factorById }) {
   const inheritance = pickInheritance(payload);
-  const [tab, setTab] = useState("main");
-
   if (!inheritance) return null;
 
   const trainerName = pickTrainerName(payload, inheritance);
@@ -262,72 +258,49 @@ function PartnerCard({ payload, factorById }) {
     inheritance.right_blue_factors ||
     inheritance.right_white_factors;
 
-  const activeGroups =
-    tab === "p1"
-      ? sparkGroups("left", inheritance)
-      : tab === "p2"
-        ? sparkGroups("right", inheritance)
-        : sparkGroups("main", inheritance);
-
   return (
     <article className="Parent-details">
       <div className="Parent-details-bar">Practice Partner</div>
 
       <div className="Parent-profile">
-        <div className="Parent-profile-photo">
-          <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
-          {score ? <div className="Parent-score">{score}</div> : null}
-        </div>
+        <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
         <div className="Parent-profile-info">
-          {rarity ? (
-            <div className="Parent-rank">
-              <StarRow count={rarity} />
-            </div>
-          ) : null}
+          <div className="Parent-profile-meta">
+            {rarity ? <StarRow count={rarity} /> : null}
+            {score ? <span className="Parent-score">{score}</span> : null}
+          </div>
           {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
           <h2 className="Parent-chara-name">{charaName}</h2>
         </div>
       </div>
 
-      <div className="Parent-tabs" role="tablist" aria-label="Inspiration source">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "main"}
-          className={tab === "main" ? "active" : ""}
-          onClick={() => setTab("main")}
-        >
-          Inspiration
-        </button>
-        {hasLeft ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "p1"}
-            className={tab === "p1" ? "active" : ""}
-            onClick={() => setTab("p1")}
-          >
-            P1
-          </button>
-        ) : null}
-        {hasRight ? (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "p2"}
-            className={tab === "p2" ? "active" : ""}
-            onClick={() => setTab("p2")}
-          >
-            P2
-          </button>
-        ) : null}
-      </div>
+      <section className="Parent-block" aria-label="Inspiration">
+        <h3 className="Parent-block-title">Inspiration</h3>
+        <InspirationGrid groups={sparkGroups("main", inheritance)} factorById={factorById} columns={2} />
+      </section>
 
-      {tab !== "main" ? (
-        <p className="Parent-tab-caption">{tab === "p1" ? `P1 · ${leftName}` : `P2 · ${rightName}`}</p>
-      ) : null}
-
-      <InspirationGrid groups={activeGroups} factorById={factorById} />
+      {(hasLeft || hasRight) && (
+        <div className="Parent-lineage">
+          {hasLeft && (
+            <section className="Parent-block" aria-label={`P1 ${leftName}`}>
+              <h3 className="Parent-block-title">
+                <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} variant="circle" />
+                <span>P1 {leftName}</span>
+              </h3>
+              <InspirationGrid groups={sparkGroups("left", inheritance)} factorById={factorById} columns={2} />
+            </section>
+          )}
+          {hasRight && (
+            <section className="Parent-block" aria-label={`P2 ${rightName}`}>
+              <h3 className="Parent-block-title">
+                <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} variant="circle" />
+                <span>P2 {rightName}</span>
+              </h3>
+              <InspirationGrid groups={sparkGroups("right", inheritance)} factorById={factorById} columns={2} />
+            </section>
+          )}
+        </div>
+      )}
     </article>
   );
 }
