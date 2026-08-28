@@ -142,17 +142,3 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--border);
 }
-
-.Parent-json {
-  margin: 0;
-  padding: 1rem;
-  border-radius: 12px;
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  overflow-x: auto;
-  text-align: left;
-  font: 0.8rem/140% var(--mono);
-  color: var(--text-h);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
