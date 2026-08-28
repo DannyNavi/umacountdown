@@ -16,10 +16,10 @@ const STAT_FACTORS = {
   50: "Wit",
 };
 
-function stars(count) {
-  const n = Number(count);
-  if (!Number.isFinite(n) || n <= 0) return "";
-  return "★".repeat(Math.min(5, Math.max(1, Math.round(n))));
+function starCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(5, Math.max(1, Math.round(n)));
 }
 
 function charaNameFromId(cardId) {
@@ -38,7 +38,13 @@ function charaStandUrl(cardId) {
   return `https://gametora.com/images/umamusume/characters/chara_stand_${prefix}_${full}.png`;
 }
 
-function CharaPortrait({ cardId, name }) {
+function formatScore(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n.toLocaleString("en-US");
+}
+
+function CharaPortrait({ cardId, name, variant = "stand" }) {
   const src = charaStandUrl(cardId);
   const [failed, setFailed] = useState(false);
 
@@ -46,56 +52,81 @@ function CharaPortrait({ cardId, name }) {
     setFailed(false);
   }, [src]);
 
-  if (!src || failed) return null;
+  const className =
+    variant === "circle"
+      ? "Parent-portrait Parent-portrait--circle"
+      : "Parent-portrait";
+
+  if (!src || failed) {
+    if (variant === "circle") {
+      return (
+        <div className={`${className} Parent-portrait--fallback`} aria-hidden="true">
+          {(name || "?").slice(0, 1)}
+        </div>
+      );
+    }
+    return null;
+  }
+
   return (
     <img
-      className="Parent-portrait"
+      className={className}
       src={src}
       alt={name ? `${name} portrait` : ""}
-      width={48}
-      height={48}
+      width={variant === "circle" ? 72 : 48}
+      height={variant === "circle" ? 72 : 48}
       onError={() => setFailed(true)}
     />
   );
 }
 
-function decodeSpark(value, factorById = new Map()) {
+function parseSpark(value, factorById = new Map()) {
   if (value == null) return null;
+
   if (typeof value === "object") {
+    const id = value.id ?? value.factor_id;
     const name =
       value.name ||
       value.factor_name ||
       value.label ||
-      factorById.get(String(value.id ?? value.factor_id))?.text ||
-      charaNameFromId(value.id ?? value.factor_id) ||
-      value.id ||
-      value.factor_id;
-    const star = value.star ?? value.stars ?? value.level;
-    if (name != null && star != null) return `${stars(star)} ${name}`.trim();
-    if (name != null) return String(name);
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
+      factorById.get(String(id))?.text ||
+      charaNameFromId(id) ||
+      (id != null ? String(id) : null);
+    const stars = starCount(value.star ?? value.stars ?? value.level);
+    if (!name) return null;
+    return { name: String(name), stars };
   }
 
   const raw = String(value);
-  if (!/^\d+$/.test(raw) || raw.length < 2) return raw;
+  if (!/^\d+$/.test(raw) || raw.length < 2) {
+    return { name: raw, stars: 0 };
+  }
+
   const level = Number(raw.slice(-1));
   const factorId = raw.slice(0, -1);
-  const starText = stars(level);
-  const factorName =
-    factorById.get(factorId)?.text || STAT_FACTORS[Number(factorId)];
-  if (factorName) return `${starText} ${factorName}`.trim();
-  const charaName = charaNameFromId(factorId);
-  if (charaName) return `${starText} ${charaName}`.trim();
-  return starText ? `${starText} ${factorId}` : raw;
+  const name =
+    factorById.get(factorId)?.text ||
+    STAT_FACTORS[Number(factorId)] ||
+    charaNameFromId(factorId) ||
+    factorId;
+  return { name, stars: starCount(level) };
 }
 
 function asList(value) {
   if (value == null) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function collectSparks(groups, factorById) {
+  return groups.flatMap(({ values, tone }) =>
+    asList(values)
+      .map((value) => {
+        const parsed = parseSpark(value, factorById);
+        if (!parsed) return null;
+        return { ...parsed, tone: tone || "white" };
+      })
+      .filter(Boolean)
+  );
 }
 
 function pickInheritance(payload) {
@@ -146,37 +177,68 @@ function pickTrainerName(payload, inheritance) {
   );
 }
 
-function SparkChips({ groups, factorById }) {
-  const chips = groups.flatMap(({ values, tone }) =>
-    asList(values)
-      .map((value) => decodeSpark(value, factorById))
-      .filter(Boolean)
-      .map((text) => ({ text, tone: tone || "" }))
-  );
-  if (!chips.length) return null;
+function StarRow({ count }) {
+  const n = starCount(count);
+  if (!n) return null;
   return (
-    <div className="Parent-chips">
+    <span className="Parent-star-row" aria-label={`${n} star${n === 1 ? "" : "s"}`}>
+      {"★".repeat(n)}
+    </span>
+  );
+}
+
+function InspirationGrid({ groups, factorById }) {
+  const chips = collectSparks(groups, factorById);
+  if (!chips.length) {
+    return <p className="Parent-empty">No inspiration data.</p>;
+  }
+  return (
+    <div className="Parent-insp-grid">
       {chips.map((chip, index) => (
-        <span className={`Parent-chip ${chip.tone}`} key={`${chip.text}-${index}`}>
-          {chip.text}
-        </span>
+        <div
+          className={`Parent-insp-tile ${chip.tone}${chip.tone === "green" ? " unique" : ""}`}
+          key={`${chip.tone}-${chip.name}-${index}`}
+        >
+          <span className={`Parent-insp-dot ${chip.tone}`} aria-hidden="true" />
+          <div className="Parent-insp-copy">
+            <span className="Parent-insp-name">{chip.name}</span>
+            <StarRow count={chip.stars} />
+          </div>
+        </div>
       ))}
     </div>
   );
 }
 
-function FactorRow({ title, values, tone, factorById }) {
-  if (!asList(values).length) return null;
-  return (
-    <div className="Parent-section" aria-label={title}>
-      <h3 className="Parent-spark-label">{title}</h3>
-      <SparkChips groups={[{ values, tone }]} factorById={factorById} />
-    </div>
-  );
+function sparkGroups(prefix, inheritance) {
+  if (prefix === "left") {
+    return [
+      { values: inheritance.left_blue_factors, tone: "blue" },
+      { values: inheritance.left_pink_factors, tone: "pink" },
+      { values: inheritance.left_green_factors, tone: "green" },
+      { values: inheritance.left_white_factors, tone: "white" },
+    ];
+  }
+  if (prefix === "right") {
+    return [
+      { values: inheritance.right_blue_factors, tone: "blue" },
+      { values: inheritance.right_pink_factors, tone: "pink" },
+      { values: inheritance.right_green_factors, tone: "green" },
+      { values: inheritance.right_white_factors, tone: "white" },
+    ];
+  }
+  return [
+    { values: inheritance.main_blue_factors ?? inheritance.blue_sparks, tone: "blue" },
+    { values: inheritance.main_pink_factors ?? inheritance.pink_sparks, tone: "pink" },
+    { values: inheritance.main_green_factors ?? inheritance.green_sparks, tone: "green" },
+    { values: inheritance.main_white_factors ?? inheritance.white_sparks, tone: "white" },
+  ];
 }
 
 function PartnerCard({ payload, factorById }) {
   const inheritance = pickInheritance(payload);
+  const [tab, setTab] = useState("main");
+
   if (!inheritance) return null;
 
   const trainerName = pickTrainerName(payload, inheritance);
@@ -188,9 +250,9 @@ function PartnerCard({ payload, factorById }) {
     inheritance.name ||
     charaNameFromId(cardId) ||
     (cardId != null ? `Card ${cardId}` : trainerName || "Practice partner");
-
-  const leftName = charaNameFromId(inheritance.parent_left_id) || inheritance.parent_left_id;
-  const rightName = charaNameFromId(inheritance.parent_right_id) || inheritance.parent_right_id;
+  const score = formatScore(inheritance.parent_rank ?? inheritance.rank ?? inheritance.eval_score);
+  const leftName = charaNameFromId(inheritance.parent_left_id) || "P1";
+  const rightName = charaNameFromId(inheritance.parent_right_id) || "P2";
   const hasLeft =
     inheritance.parent_left_id ||
     inheritance.left_blue_factors ||
@@ -200,63 +262,68 @@ function PartnerCard({ payload, factorById }) {
     inheritance.right_blue_factors ||
     inheritance.right_white_factors;
 
+  const activeGroups =
+    tab === "p1"
+      ? sparkGroups("left", inheritance)
+      : tab === "p2"
+        ? sparkGroups("right", inheritance)
+        : sparkGroups("main", inheritance);
+
   return (
-    <article className="Parent-card">
-      <div className="Parent-card-header">
-        <div className="Parent-name">
-          <CharaPortrait cardId={cardId} name={charaName} />
-          <h2>{charaName}</h2>
+    <article className="Parent-details">
+      <div className="Parent-details-bar">Practice Partner</div>
+
+      <div className="Parent-profile">
+        <div className="Parent-profile-photo">
+          <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
+          {score ? <div className="Parent-score">{score}</div> : null}
         </div>
-        {trainerName ? <span className="Parent-meta">{trainerName}</span> : null}
-        {rarity ? <span className="Parent-stars">{stars(rarity)}</span> : null}
+        <div className="Parent-profile-info">
+          {rarity ? (
+            <div className="Parent-rank">
+              <StarRow count={rarity} />
+            </div>
+          ) : null}
+          {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
+          <h2 className="Parent-chara-name">{charaName}</h2>
+        </div>
       </div>
 
-      <div className="Parent-main-sparks">
-        <FactorRow title="Blue" values={inheritance.main_blue_factors ?? inheritance.blue_sparks} tone="blue" factorById={factorById} />
-        <FactorRow title="Pink" values={inheritance.main_pink_factors ?? inheritance.pink_sparks} tone="pink" factorById={factorById} />
-        <FactorRow title="Green" values={inheritance.main_green_factors ?? inheritance.green_sparks} tone="green" factorById={factorById} />
-        <FactorRow title="White" values={inheritance.main_white_factors ?? inheritance.white_sparks} tone="white" factorById={factorById} />
+      <div className="Parent-tabs" role="tablist" aria-label="Inspiration source">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "main"}
+          className={tab === "main" ? "active" : ""}
+          onClick={() => setTab("main")}
+        >
+          Inspiration
+        </button>
+        {hasLeft ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "p1"}
+            className={tab === "p1" ? "active" : ""}
+            onClick={() => setTab("p1")}
+          >
+            P1 {leftName}
+          </button>
+        ) : null}
+        {hasRight ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "p2"}
+            className={tab === "p2" ? "active" : ""}
+            onClick={() => setTab("p2")}
+          >
+            P2 {rightName}
+          </button>
+        ) : null}
       </div>
 
-      {(hasLeft || hasRight) && (
-        <div className="Parent-grandparents">
-          {hasLeft && (
-            <div className="Parent-section">
-              <h3 className="Parent-parent-heading">
-                <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} />
-                <span>P1 {inheritance.parent_left_id ? `(${leftName})` : ""}</span>
-              </h3>
-              <SparkChips
-                groups={[
-                  { values: inheritance.left_blue_factors, tone: "blue" },
-                  { values: inheritance.left_pink_factors, tone: "pink" },
-                  { values: inheritance.left_green_factors, tone: "green" },
-                  { values: inheritance.left_white_factors, tone: "white" },
-                ]}
-                factorById={factorById}
-              />
-            </div>
-          )}
-
-          {hasRight && (
-            <div className="Parent-section">
-              <h3 className="Parent-parent-heading">
-                <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} />
-                <span>P2 {inheritance.parent_right_id ? `(${rightName})` : ""}</span>
-              </h3>
-              <SparkChips
-                groups={[
-                  { values: inheritance.right_blue_factors, tone: "blue" },
-                  { values: inheritance.right_pink_factors, tone: "pink" },
-                  { values: inheritance.right_green_factors, tone: "green" },
-                  { values: inheritance.right_white_factors, tone: "white" },
-                ]}
-                factorById={factorById}
-              />
-            </div>
-          )}
-        </div>
-      )}
+      <InspirationGrid groups={activeGroups} factorById={factorById} />
     </article>
   );
 }
