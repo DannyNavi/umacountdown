@@ -231,15 +231,33 @@ function isAbortError(err) {
   return err?.name === "TimeoutError" || err?.name === "AbortError";
 }
 
+function mergeAbortSignals(signals) {
+  const live = signals.filter(Boolean);
+  if (live.length === 0) return undefined;
+  if (live.length === 1) return live[0];
+  if (typeof AbortSignal.any === "function") return AbortSignal.any(live);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  for (const signal of live) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      return controller.signal;
+    }
+    signal.addEventListener("abort", abort, { once: true });
+  }
+  return controller.signal;
+}
+
+
 export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   const {
     fetch: fetchImpl = globalThis.fetch,
     sleep: sleepImpl = sleep,
     timeoutMs = PARTNER_LOOKUP_TIMEOUT_MS,
     origin = UMA_MOE_ORIGIN,
-    savedAttempts = 5,
-    taskAttempts = 5,
-    retryDelayMs = 700,
+    savedAttempts = 12,
+    taskAttempts = 3,
+    retryDelayMs = 250,
   } = deps;
 
   const headers = (extra) => umaHeaders(apiKey, extra);
@@ -253,13 +271,19 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return { ok: res.ok, status: res.status, body };
   }
 
+  async function fetchSavedPartnerOnce(taskId = null, options = {}) {
+    const saved = await umaGetJson("/api/v4/partner/saved");
+    if (!saved.ok) return null;
+    const row = pickSavedPartner(saved.body, partnerId, taskId, options);
+    return extractFound(row);
+  }
+
   async function fetchSavedPartner(taskId = null, options = {}) {
     for (let attempt = 0; attempt < savedAttempts; attempt++) {
+      if (options.stop?.()) return null;
       if (attempt > 0 && retryDelayMs) await sleepImpl(retryDelayMs);
-      const saved = await umaGetJson("/api/v4/partner/saved");
-      if (!saved.ok) continue;
-      const row = pickSavedPartner(saved.body, partnerId, taskId, options);
-      const found = extractFound(row);
+      if (options.stop?.()) return null;
+      const found = await fetchSavedPartnerOnce(taskId, options);
       if (found) return found;
     }
     return null;
@@ -282,7 +306,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return null;
   }
 
-  async function waitForPartnerStream(taskId) {
+  async function waitForPartnerStream(taskId, streamSignal) {
     let streamRes;
     try {
       streamRes = await fetchImpl(
@@ -292,7 +316,10 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
             "X-API-Key": apiKey,
             Accept: "text/event-stream",
           },
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: mergeAbortSignals([
+            AbortSignal.timeout(timeoutMs),
+            streamSignal,
+          ]),
         }
       );
     } catch (err) {
@@ -317,7 +344,6 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     let lastData = {};
     let found = null;
     let terminal = null;
-    let completedAt = 0;
 
     const consumeBlock = (block) => {
       if (!block.trim()) return;
@@ -339,7 +365,6 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         };
       } else if (status === "completed" || parsed.event === "completed") {
         terminal = { ok: true, status: 200, body: lastData };
-        completedAt = completedAt || Date.now();
       }
     };
 
@@ -351,9 +376,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         const parts = buffer.split(/\r?\n\r?\n/);
         buffer = parts.pop() ?? "";
         for (const block of parts) consumeBlock(block);
-        if (terminal && !terminal.ok) break;
-        if (terminal?.ok && found) break;
-        if (terminal?.ok && completedAt && Date.now() - completedAt > 2500) break;
+        // Stop as soon as uma.moe reports a terminal status. Waiting on an
+        // open stream after `completed` can stall until the 45s abort.
+        if (terminal) break;
       }
       buffer += decoder.decode();
       consumeBlock(buffer);
@@ -421,34 +446,70 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   let streamBody = null;
 
   if (hasTaskId(startBody.task_id) && !found) {
-    const streamed = await waitForPartnerStream(startBody.task_id);
-    streamBody = streamed.body;
-    found = streamed.found || extractFound(streamed.body) || found;
-    if (!found) {
-      found = await fetchTaskResult(startBody.task_id);
-    }
-    if (!found) {
-      found = await fetchSavedPartner(startBody.task_id, {
-        allowLatest: Boolean(streamed.ok || startBody.will_persist),
-      });
-    }
-    if (!found && streamed.ok) {
-      // 9-digit Practice IDs are queued. After the job finishes, uma.moe
-      // often serves the same ID as an immediate-complete POST (as the
-      // browser does), keyed by the trainer account rather than the share ID.
-      const retryRes = await postLookup();
-      const retryBody = await readJsonSafe(retryRes);
-      const retryFound = extractFound(retryBody);
-      if (retryFound) {
-        found = retryFound;
-        startBody = retryBody;
+    const taskId = startBody.task_id;
+    const allowLatest = Boolean(startBody.will_persist);
+    const streamAbort = new AbortController();
+    let stopSaved = false;
+
+    const savedPromise = fetchSavedPartner(taskId, {
+      allowLatest,
+      stop: () => stopSaved,
+    });
+    const streamPromise = waitForPartnerStream(taskId, streamAbort.signal).catch(
+      (err) => {
+        if (isAbortError(err) || err?.name === "AbortError") {
+          return { ok: false, status: 504, body: { error: "Lookup timed out" } };
+        }
+        throw err;
       }
+    );
+
+    const winner = await Promise.race([
+      savedPromise.then((hit) =>
+        hit ? { kind: "saved", hit } : { kind: "saved-empty" }
+      ),
+      streamPromise.then((streamed) => ({ kind: "stream", streamed })),
+    ]);
+
+    if (winner.kind === "saved") {
+      found = winner.hit;
+      stopSaved = true;
+      streamAbort.abort();
+    } else {
+      const streamed =
+        winner.kind === "stream" ? winner.streamed : await streamPromise;
+      streamBody = streamed.body;
+      found = streamed.found || extractFound(streamed.body) || found;
+      if (!found) {
+        const [taskHit, savedHit] = await Promise.all([
+          fetchTaskResult(taskId),
+          savedPromise,
+        ]);
+        found = taskHit || savedHit;
+      }
+      if (!found) {
+        found = await fetchSavedPartnerOnce(taskId, { allowLatest: true });
+      }
+      if (!found && streamed.ok) {
+        // 9-digit Practice IDs are queued. After the job finishes, uma.moe
+        // often serves the same ID as an immediate-complete POST (as the
+        // browser does), keyed by the trainer account rather than the share ID.
+        const retryRes = await postLookup();
+        const retryBody = await readJsonSafe(retryRes);
+        const retryFound = extractFound(retryBody);
+        if (retryFound) {
+          found = retryFound;
+          startBody = retryBody;
+        }
+      }
+      stopSaved = true;
+      streamAbort.abort();
+      if (!found && !streamed.ok) return streamed;
     }
-    if (!found && !streamed.ok) return streamed;
   }
 
   if (!found) {
-    found = await fetchSavedPartner(startBody.task_id, {
+    found = await fetchSavedPartnerOnce(startBody.task_id, {
       allowLatest: Boolean(startBody.will_persist),
     });
   }

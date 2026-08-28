@@ -388,3 +388,146 @@ test("lookup retries POST after a queued Practice ID job finishes", async () => 
   assert.equal(result.body.result.account_id, "711269443937");
   assert.equal(result.body.inheritance.main_parent_id, 102001);
 });
+
+test("lookup returns a saved partner without waiting for a slow stream", async () => {
+  let streamAborted = false;
+  const fetchImpl = async (url, init) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 12,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/12/stream") {
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, 5000);
+        const onAbort = () => {
+          streamAborted = true;
+          clearTimeout(timer);
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          reject(err);
+        };
+        if (init?.signal?.aborted) {
+          onAbort();
+          return;
+        }
+        init?.signal?.addEventListener("abort", onAbort, { once: true });
+      });
+      return sseResponse(
+        'event: completed\ndata: {"status":"completed","task_id":12}\n\n'
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([{ ...SAMPLE_INHERITANCE, account_id: "163368214" }]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const started = Date.now();
+  const result = await lookupPracticePartner("uma_k_test", "163368214", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+    timeoutMs: 8000,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 100401);
+  assert.equal(streamAborted, true);
+  assert.ok(Date.now() - started < 1000);
+});
+
+test("lookup does not wait on an open stream after completed", async () => {
+  const encoder = new TextEncoder();
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 11,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/11/stream") {
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                'event: completed\ndata: {"status":"completed","task_id":11}\n\n'
+              )
+            );
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } }
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([{ ...SAMPLE_INHERITANCE, account_id: "163368214" }]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const started = Date.now();
+  const result = await lookupPracticePartner("uma_k_test", "163368214", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+    timeoutMs: 4000,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 100401);
+  assert.ok(Date.now() - started < 1000);
+});
+
+test("lookup fetches task result and saved partner together after an empty completed stream", async () => {
+  const inflight = new Set();
+  let overlapped = false;
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 13,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/13/stream") {
+      return sseResponse(
+        'event: completed\ndata: {"status":"completed","task_id":13}\n\n'
+      );
+    }
+    if (
+      path === "/api/v4/partner/lookup/13" ||
+      path === "/api/v4/partner/lookup/13/result" ||
+      path === "/api/v4/partner/saved"
+    ) {
+      inflight.add(path);
+      if (inflight.size > 1) overlapped = true;
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      inflight.delete(path);
+      if (path === "/api/v4/partner/saved") {
+        return jsonResponse([{ ...SAMPLE_INHERITANCE, account_id: "163368214" }]);
+      }
+      return jsonResponse({ result: { inheritance: null } });
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "163368214", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 100401);
+  assert.equal(overlapped, true);
+});

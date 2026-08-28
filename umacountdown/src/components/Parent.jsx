@@ -16,6 +16,61 @@ const STAT_FACTORS = {
   50: "Wit",
 };
 
+const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
+const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const PRACTICE_CACHE_PREFIX = "uma-practice:";
+const PRACTICE_CACHE_TTL_MS = 60 * 60 * 1000;
+
+function readCachedFactors() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FACTORS_CACHE_KEY) || "null");
+    if (!parsed?.items || Date.now() - parsed.savedAt > FACTORS_CACHE_TTL_MS) {
+      return null;
+    }
+    return parsed.items;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedFactors(items) {
+  try {
+    localStorage.setItem(
+      FACTORS_CACHE_KEY,
+      JSON.stringify({ items, savedAt: Date.now() })
+    );
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function practiceCacheKey(id) {
+  return `${PRACTICE_CACHE_PREFIX}${id}`;
+}
+
+function readCachedPractice(id) {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(practiceCacheKey(id)) || "null");
+    if (!parsed?.payload || Date.now() - parsed.savedAt > PRACTICE_CACHE_TTL_MS) {
+      return null;
+    }
+    return parsed.payload;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedPractice(id, payload) {
+  try {
+    sessionStorage.setItem(
+      practiceCacheKey(id),
+      JSON.stringify({ payload, savedAt: Date.now() })
+    );
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 function starCount(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
@@ -366,7 +421,12 @@ export default function Parent() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [factorById, setFactorById] = useState(() => new Map());
+  const [factorById, setFactorById] = useState(() => {
+    const items = readCachedFactors();
+    return items
+      ? new Map(items.map((factor) => [String(factor.id), factor]))
+      : new Map();
+  });
 
   useEffect(() => {
     document.documentElement.classList.add("parent-page");
@@ -385,9 +445,9 @@ export default function Parent() {
       .then((res) => res.json())
       .then((body) => {
         const list = Array.isArray(body) ? body : body?.factors || [];
-        setFactorById(
-          new Map(list.map((factor) => [String(factor.id), factor]))
-        );
+        if (!list.length) return;
+        writeCachedFactors(list);
+        setFactorById(new Map(list.map((factor) => [String(factor.id), factor])));
       })
       .catch((err) => {
         if (err.name !== "AbortError") {
@@ -409,10 +469,11 @@ export default function Parent() {
       return;
     }
 
+    const cached = readCachedPractice(id);
     const controller = new AbortController();
-    setLoading(true);
     setError("");
-    setData(null);
+    setData(cached);
+    setLoading(true);
 
     fetch(`/api/v4/practice?id=${encodeURIComponent(id)}`, {
       signal: controller.signal,
@@ -426,14 +487,19 @@ export default function Parent() {
       })
       .then((body) => {
         setData(body);
+        writeCachedPractice(id, body);
         const inheritance = pickInheritance(body);
         if (!inheritance && !body.error) {
           setError("Lookup finished but no inheritance data was returned. The Practice ID may have expired.");
+        } else {
+          setError("");
         }
       })
       .catch((err) => {
         if (err.name === "AbortError") return;
-        setError(err.message || "Failed to look up practice partner");
+        if (!cached) {
+          setError(err.message || "Failed to look up practice partner");
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -476,7 +542,9 @@ export default function Parent() {
         <strong>Trainer ID:</strong> permanent 12-digit account ID
       </p>
 
-      {loading ? <p className="Parent-status">Looking up {id}…</p> : null}
+      {loading ? (
+        <p className="Parent-status">{data ? `Updating ${id}…` : `Looking up ${id}…`}</p>
+      ) : null}
       {error ? <p className="Parent-status error">{error}</p> : null}
       {data ? <PartnerCard payload={data} factorById={factorById} /> : null}
     </div>
