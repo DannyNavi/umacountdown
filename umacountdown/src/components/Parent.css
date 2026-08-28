@@ -75,9 +75,28 @@
 .Parent-card-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem 0.85rem;
   margin-bottom: 0.85rem;
+}
+
+.Parent-name,
+.Parent-parent-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.Parent-portrait {
+  width: auto;
+  height: 48px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.Parent-parent-heading .Parent-portrait {
+  height: 36px;
 }
 
 .Parent-card-header h2 {
