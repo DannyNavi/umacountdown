@@ -132,11 +132,27 @@ test("pickSavedPartner only returns a row that matches the requested id", () => 
           last_updated: "2026-08-27T23:11:30Z",
         },
       ],
-      "966998386",
-      null,
-      { allowLatest: true }
-    ).account_id,
-    "711269443937"
+      "966998386"
+    ),
+    null
+  );
+  assert.equal(
+    pickSavedPartner(
+      [
+        {
+          account_id: "711269443937",
+          main_parent_id: 102001,
+          last_updated: "2026-08-27T23:11:30Z",
+        },
+        {
+          partner_id: "966998386",
+          main_parent_id: 100401,
+          last_updated: "2026-08-26T00:00:00Z",
+        },
+      ],
+      "966998386"
+    ).main_parent_id,
+    100401
   );
 });
 
@@ -298,7 +314,7 @@ test("lookup returns inheritance from an immediate-complete POST and skips the s
   assert.deepEqual(result.body.inheritance.blue_sparks, [201, 401, 302]);
 });
 
-test("lookup uses the latest saved partner when a Practice ID does not match account_id", async () => {
+test("lookup does not use an unrelated trainer parent for a Practice ID", async () => {
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
     if (path === "/api/v4/partner/lookup") {
@@ -334,9 +350,100 @@ test("lookup uses the latest saved partner when a Practice ID does not match acc
     savedAttempts: 1,
     taskAttempts: 1,
   });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 502);
+  assert.equal(result.body.result.inheritance, null);
+});
+
+test("lookup uses the saved uma that matches the Practice ID, not a newer trainer parent", async () => {
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 9,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/9/stream") {
+      return sseResponse(
+        'event: completed\ndata: {"status":"completed","task_id":9}\n\n'
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([
+        {
+          account_id: "711269443937",
+          trainer_name: "DannyN",
+          main_parent_id: 102001,
+          last_updated: "2026-08-28T12:00:00Z",
+        },
+        {
+          partner_id: "966998386",
+          trainer_name: "Asriel",
+          main_parent_id: 100401,
+          last_updated: "2026-08-26T00:00:00Z",
+        },
+      ]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "966998386", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
   assert.equal(result.ok, true);
-  assert.equal(result.body.trainer_name, "DannyN");
-  assert.equal(result.body.inheritance.main_parent_id, 102001);
+  assert.equal(result.body.inheritance.main_parent_id, 100401);
+  assert.equal(result.body.trainer_name, "Asriel");
+});
+
+test("lookup keeps stream inheritance instead of an unrelated saved trainer parent", async () => {
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 14,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/14/stream") {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      return sseResponse(
+        `event: completed\ndata: ${JSON.stringify({
+          status: "completed",
+          task_id: 14,
+          inheritance: SAMPLE_INHERITANCE,
+        })}\n\n`
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([
+        {
+          account_id: "711269443937",
+          trainer_name: "DannyN",
+          main_parent_id: 102001,
+          last_updated: "2026-08-28T12:00:00Z",
+        },
+      ]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "966998386", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 100401);
+  assert.equal(result.body.trainer_name, "Asriel");
 });
 
 test("lookup retries POST after a queued Practice ID job finishes", async () => {

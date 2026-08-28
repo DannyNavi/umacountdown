@@ -117,26 +117,15 @@ function rowIds(row) {
     .map((value) => String(value));
 }
 
-export function pickSavedPartner(payload, partnerId, taskId = null, options = {}) {
+export function pickSavedPartner(payload, partnerId, taskId = null) {
   const list = savedList(payload);
   if (!list.length) return null;
   const ids = new Set(
     [partnerId, taskId].filter((value) => value != null && value !== "").map(String)
   );
-  const match = list.find((row) => rowIds(row).some((id) => ids.has(id)));
-  if (match) return match;
-  if (!options.allowLatest) return null;
-  return (
-    [...list].sort((a, b) => {
-      const aKey =
-        Date.parse(a.last_updated || a.updated_at || a.created_at || "") ||
-        Number(a.inheritance_id || a.id || 0);
-      const bKey =
-        Date.parse(b.last_updated || b.updated_at || b.created_at || "") ||
-        Number(b.inheritance_id || b.id || 0);
-      return bKey - aKey;
-    })[0] ?? null
-  );
+  // Only return a row for this Practice/Trainer ID (or this job's task_id).
+  // Falling back to the newest saved partner shows some other trainer's uma.
+  return list.find((row) => rowIds(row).some((id) => ids.has(id))) ?? null;
 }
 
 function parseJsonPayload(raw) {
@@ -274,7 +263,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   async function fetchSavedPartnerOnce(taskId = null, options = {}) {
     const saved = await umaGetJson("/api/v4/partner/saved");
     if (!saved.ok) return null;
-    const row = pickSavedPartner(saved.body, partnerId, taskId, options);
+    const row = pickSavedPartner(saved.body, partnerId, taskId);
     return extractFound(row);
   }
 
@@ -447,12 +436,10 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
 
   if (hasTaskId(startBody.task_id) && !found) {
     const taskId = startBody.task_id;
-    const allowLatest = Boolean(startBody.will_persist);
     const streamAbort = new AbortController();
     let stopSaved = false;
 
     const savedPromise = fetchSavedPartner(taskId, {
-      allowLatest,
       stop: () => stopSaved,
     });
     const streamPromise = waitForPartnerStream(taskId, streamAbort.signal).catch(
@@ -488,7 +475,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         found = taskHit || savedHit;
       }
       if (!found) {
-        found = await fetchSavedPartnerOnce(taskId, { allowLatest: true });
+        found = await fetchSavedPartnerOnce(taskId);
       }
       if (!found && streamed.ok) {
         // 9-digit Practice IDs are queued. After the job finishes, uma.moe
@@ -509,9 +496,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   }
 
   if (!found) {
-    found = await fetchSavedPartnerOnce(startBody.task_id, {
-      allowLatest: Boolean(startBody.will_persist),
-    });
+    found = await fetchSavedPartnerOnce(startBody.task_id);
   }
 
   if (!found) {
