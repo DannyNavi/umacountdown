@@ -30,6 +30,35 @@ function charaNameFromId(cardId) {
   return getCharaByBaseId(String(base))?.name || null;
 }
 
+function charaStandUrl(cardId) {
+  const digits = String(cardId ?? "").replace(/\D/g, "");
+  if (digits.length < 6) return null;
+  const full = digits.slice(0, 6);
+  const prefix = full.slice(0, 4);
+  return `https://gametora.com/images/umamusume/characters/chara_stand_${prefix}_${full}.png`;
+}
+
+function CharaPortrait({ cardId, name }) {
+  const src = charaStandUrl(cardId);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) return null;
+  return (
+    <img
+      className="Parent-portrait"
+      src={src}
+      alt={name ? `${name} portrait` : ""}
+      width={48}
+      height={48}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function decodeSpark(value, factorById = new Map()) {
   if (value == null) return null;
   if (typeof value === "object") {
@@ -153,10 +182,16 @@ function PartnerCard({ payload, factorById }) {
     charaNameFromId(cardId) ||
     (cardId != null ? `Card ${cardId}` : trainerName || "Practice partner");
 
+  const leftName = charaNameFromId(inheritance.parent_left_id) || inheritance.parent_left_id;
+  const rightName = charaNameFromId(inheritance.parent_right_id) || inheritance.parent_right_id;
+
   return (
     <article className="Parent-card">
       <div className="Parent-card-header">
-        <h2>{charaName}</h2>
+        <div className="Parent-name">
+          <CharaPortrait cardId={cardId} name={charaName} />
+          <h2>{charaName}</h2>
+        </div>
         {trainerName ? <span className="Parent-meta">{trainerName}</span> : null}
         {accountId ? <span className="Parent-meta">ID {accountId}</span> : null}
         {rarity ? <span className="Parent-stars">{stars(rarity)}</span> : null}
@@ -169,7 +204,10 @@ function PartnerCard({ payload, factorById }) {
 
       {(inheritance.parent_left_id || inheritance.left_blue_factors || inheritance.left_white_factors) && (
         <div className="Parent-section">
-          <h3>P1 {inheritance.parent_left_id ? `(${charaNameFromId(inheritance.parent_left_id) || inheritance.parent_left_id})` : ""}</h3>
+          <h3 className="Parent-parent-heading">
+            <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} />
+            <span>P1 {inheritance.parent_left_id ? `(${leftName})` : ""}</span>
+          </h3>
           <div className="Parent-chips">
             {asList(inheritance.left_blue_factors)
               .concat(asList(inheritance.left_pink_factors), asList(inheritance.left_green_factors), asList(inheritance.left_white_factors))
@@ -186,7 +224,10 @@ function PartnerCard({ payload, factorById }) {
 
       {(inheritance.parent_right_id || inheritance.right_blue_factors || inheritance.right_white_factors) && (
         <div className="Parent-section">
-          <h3>P2 {inheritance.parent_right_id ? `(${charaNameFromId(inheritance.parent_right_id) || inheritance.parent_right_id})` : ""}</h3>
+          <h3 className="Parent-parent-heading">
+            <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} />
+            <span>P2 {inheritance.parent_right_id ? `(${rightName})` : ""}</span>
+          </h3>
           <div className="Parent-chips">
             {asList(inheritance.right_blue_factors)
               .concat(asList(inheritance.right_pink_factors), asList(inheritance.right_green_factors), asList(inheritance.right_white_factors))
