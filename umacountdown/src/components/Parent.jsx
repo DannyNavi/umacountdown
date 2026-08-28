@@ -307,7 +307,7 @@ function PartnerCard({ payload, factorById }) {
             className={tab === "p1" ? "active" : ""}
             onClick={() => setTab("p1")}
           >
-            P1 {leftName}
+            P1
           </button>
         ) : null}
         {hasRight ? (
@@ -318,10 +318,14 @@ function PartnerCard({ payload, factorById }) {
             className={tab === "p2" ? "active" : ""}
             onClick={() => setTab("p2")}
           >
-            P2 {rightName}
+            P2
           </button>
         ) : null}
       </div>
+
+      {tab !== "main" ? (
+        <p className="Parent-tab-caption">{tab === "p1" ? `P1 · ${leftName}` : `P2 · ${rightName}`}</p>
+      ) : null}
 
       <InspirationGrid groups={activeGroups} factorById={factorById} />
     </article>
