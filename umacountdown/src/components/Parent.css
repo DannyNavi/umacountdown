@@ -231,6 +231,11 @@
   background: var(--uma-pill-unique);
 }
 
+.Parent-insp-tile.match {
+  background: #ffe59a;
+  box-shadow: inset 0 0 0 1.5px #e2b84c;
+}
+
 .Parent-insp-dot {
   width: 0.5rem;
   height: 0.5rem;

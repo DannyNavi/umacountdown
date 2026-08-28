@@ -85,21 +85,28 @@ function parseSpark(value, factorById = new Map()) {
 
   if (typeof value === "object") {
     const id = value.id ?? value.factor_id;
+    const hasStarField = value.star != null || value.stars != null || value.level != null;
+    let factorId = id != null ? String(id) : "";
+    let stars = starCount(value.star ?? value.stars ?? value.level);
+    if (!hasStarField && /^\d+$/.test(factorId) && factorId.length >= 2) {
+      stars = starCount(factorId.slice(-1));
+      factorId = factorId.slice(0, -1);
+    }
     const name =
       value.name ||
       value.factor_name ||
       value.label ||
+      factorById.get(factorId)?.text ||
       factorById.get(String(id))?.text ||
-      charaNameFromId(id) ||
+      charaNameFromId(factorId || id) ||
       (id != null ? String(id) : null);
-    const stars = starCount(value.star ?? value.stars ?? value.level);
     if (!name) return null;
-    return { name: String(name), stars };
+    return { name: String(name), stars, factorId };
   }
 
   const raw = String(value);
   if (!/^\d+$/.test(raw) || raw.length < 2) {
-    return { name: raw, stars: 0 };
+    return { name: raw, stars: 0, factorId: raw };
   }
 
   const level = Number(raw.slice(-1));
@@ -109,7 +116,7 @@ function parseSpark(value, factorById = new Map()) {
     STAT_FACTORS[Number(factorId)] ||
     charaNameFromId(factorId) ||
     factorId;
-  return { name, stars: starCount(level) };
+  return { name, stars: starCount(level), factorId };
 }
 
 function asList(value) {
@@ -117,16 +124,47 @@ function asList(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-function collectSparks(groups, factorById) {
+function collectSparks(groups, factorById, matchedIds) {
   return groups.flatMap(({ values, tone }) =>
     asList(values)
       .map((value) => {
         const parsed = parseSpark(value, factorById);
         if (!parsed) return null;
-        return { ...parsed, tone: tone || "white" };
+        const nextTone = tone || "white";
+        return {
+          ...parsed,
+          tone: nextTone,
+          matched: nextTone === "white" && matchedIds?.has(parsed.factorId),
+        };
       })
       .filter(Boolean)
   );
+}
+
+function whiteFactorIds(values) {
+  const ids = new Set();
+  for (const value of asList(values)) {
+    const parsed = parseSpark(value);
+    if (parsed?.factorId) ids.add(parsed.factorId);
+  }
+  return ids;
+}
+
+function matchingWhiteIds(inheritance) {
+  const sources = [
+    whiteFactorIds(inheritance.main_white_factors ?? inheritance.white_sparks),
+    whiteFactorIds(inheritance.left_white_factors),
+    whiteFactorIds(inheritance.right_white_factors),
+  ];
+  const counts = new Map();
+  for (const ids of sources) {
+    for (const id of ids) counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const matched = new Set();
+  for (const [id, count] of counts) {
+    if (count >= 2) matched.add(id);
+  }
+  return matched;
 }
 
 function pickInheritance(payload) {
@@ -187,8 +225,8 @@ function StarRow({ count }) {
   );
 }
 
-function InspirationGrid({ groups, factorById, columns = 2 }) {
-  const chips = collectSparks(groups, factorById);
+function InspirationGrid({ groups, factorById, columns = 2, matchedIds }) {
+  const chips = collectSparks(groups, factorById, matchedIds);
   if (!chips.length) {
     return <p className="Parent-empty">No inspiration data.</p>;
   }
@@ -196,7 +234,7 @@ function InspirationGrid({ groups, factorById, columns = 2 }) {
     <div className={`Parent-insp-grid cols-${columns}`}>
       {chips.map((chip, index) => (
         <div
-          className={`Parent-insp-tile ${chip.tone}${chip.tone === "green" ? " unique" : ""}`}
+          className={`Parent-insp-tile ${chip.tone}${chip.tone === "green" ? " unique" : ""}${chip.matched ? " match" : ""}`}
           key={`${chip.tone}-${chip.name}-${index}`}
         >
           <span className={`Parent-insp-dot ${chip.tone}`} aria-hidden="true" />
@@ -257,6 +295,7 @@ function PartnerCard({ payload, factorById }) {
     inheritance.parent_right_id ||
     inheritance.right_blue_factors ||
     inheritance.right_white_factors;
+  const matchedIds = matchingWhiteIds(inheritance);
 
   return (
     <article className="Parent-details">
@@ -276,7 +315,7 @@ function PartnerCard({ payload, factorById }) {
 
       <section className="Parent-block" aria-label="Inspiration">
         <h3 className="Parent-block-title">Inspiration</h3>
-        <InspirationGrid groups={sparkGroups("main", inheritance)} factorById={factorById} columns={2} />
+        <InspirationGrid groups={sparkGroups("main", inheritance)} factorById={factorById} columns={2} matchedIds={matchedIds} />
       </section>
 
       {(hasLeft || hasRight) && (
@@ -287,7 +326,7 @@ function PartnerCard({ payload, factorById }) {
                 <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} variant="circle" />
                 <span>P1 {leftName}</span>
               </h3>
-              <InspirationGrid groups={sparkGroups("left", inheritance)} factorById={factorById} columns={2} />
+              <InspirationGrid groups={sparkGroups("left", inheritance)} factorById={factorById} columns={2} matchedIds={matchedIds} />
             </section>
           )}
           {hasRight && (
@@ -296,7 +335,7 @@ function PartnerCard({ payload, factorById }) {
                 <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} variant="circle" />
                 <span>P2 {rightName}</span>
               </h3>
-              <InspirationGrid groups={sparkGroups("right", inheritance)} factorById={factorById} columns={2} />
+              <InspirationGrid groups={sparkGroups("right", inheritance)} factorById={factorById} columns={2} matchedIds={matchedIds} />
             </section>
           )}
         </div>
