@@ -146,19 +146,31 @@ function pickTrainerName(payload, inheritance) {
   );
 }
 
-function FactorRow({ title, values, tone, factorById }) {
-  const chips = asList(values).map((value) => decodeSpark(value, factorById)).filter(Boolean);
+function SparkChips({ groups, factorById }) {
+  const chips = groups.flatMap(({ values, tone }) =>
+    asList(values)
+      .map((value) => decodeSpark(value, factorById))
+      .filter(Boolean)
+      .map((text) => ({ text, tone: tone || "" }))
+  );
   if (!chips.length) return null;
   return (
-    <div className="Parent-section">
-      <h3>{title}</h3>
-      <div className="Parent-chips">
-        {chips.map((chip, index) => (
-          <span className={`Parent-chip ${tone || ""}`} key={`${chip}-${index}`}>
-            {chip}
-          </span>
-        ))}
-      </div>
+    <div className="Parent-chips">
+      {chips.map((chip, index) => (
+        <span className={`Parent-chip ${chip.tone}`} key={`${chip.text}-${index}`}>
+          {chip.text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function FactorRow({ title, values, tone, factorById }) {
+  if (!asList(values).length) return null;
+  return (
+    <div className="Parent-section" aria-label={title}>
+      <h3 className="Parent-spark-label">{title}</h3>
+      <SparkChips groups={[{ values, tone }]} factorById={factorById} />
     </div>
   );
 }
@@ -168,11 +180,6 @@ function PartnerCard({ payload, factorById }) {
   if (!inheritance) return null;
 
   const trainerName = pickTrainerName(payload, inheritance);
-  const accountId =
-    inheritance.account_id ||
-    payload?.result?.account_id ||
-    payload?.account_id ||
-    null;
   const rarity = inheritance.parent_rarity ?? inheritance.rarity;
   const cardId = inheritance.main_parent_id ?? inheritance.card_id;
   const charaName =
@@ -184,6 +191,14 @@ function PartnerCard({ payload, factorById }) {
 
   const leftName = charaNameFromId(inheritance.parent_left_id) || inheritance.parent_left_id;
   const rightName = charaNameFromId(inheritance.parent_right_id) || inheritance.parent_right_id;
+  const hasLeft =
+    inheritance.parent_left_id ||
+    inheritance.left_blue_factors ||
+    inheritance.left_white_factors;
+  const hasRight =
+    inheritance.parent_right_id ||
+    inheritance.right_blue_factors ||
+    inheritance.right_white_factors;
 
   return (
     <article className="Parent-card">
@@ -193,52 +208,53 @@ function PartnerCard({ payload, factorById }) {
           <h2>{charaName}</h2>
         </div>
         {trainerName ? <span className="Parent-meta">{trainerName}</span> : null}
-        {accountId ? <span className="Parent-meta">ID {accountId}</span> : null}
         {rarity ? <span className="Parent-stars">{stars(rarity)}</span> : null}
       </div>
 
-      <FactorRow title="Blue" values={inheritance.main_blue_factors ?? inheritance.blue_sparks} tone="blue" factorById={factorById} />
-      <FactorRow title="Pink" values={inheritance.main_pink_factors ?? inheritance.pink_sparks} tone="pink" factorById={factorById} />
-      <FactorRow title="Green" values={inheritance.main_green_factors ?? inheritance.green_sparks} tone="green" factorById={factorById} />
-      <FactorRow title="White" values={inheritance.main_white_factors ?? inheritance.white_sparks} tone="white" factorById={factorById} />
+      <div className="Parent-main-sparks">
+        <FactorRow title="Blue" values={inheritance.main_blue_factors ?? inheritance.blue_sparks} tone="blue" factorById={factorById} />
+        <FactorRow title="Pink" values={inheritance.main_pink_factors ?? inheritance.pink_sparks} tone="pink" factorById={factorById} />
+        <FactorRow title="Green" values={inheritance.main_green_factors ?? inheritance.green_sparks} tone="green" factorById={factorById} />
+        <FactorRow title="White" values={inheritance.main_white_factors ?? inheritance.white_sparks} tone="white" factorById={factorById} />
+      </div>
 
-      {(inheritance.parent_left_id || inheritance.left_blue_factors || inheritance.left_white_factors) && (
-        <div className="Parent-section">
-          <h3 className="Parent-parent-heading">
-            <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} />
-            <span>P1 {inheritance.parent_left_id ? `(${leftName})` : ""}</span>
-          </h3>
-          <div className="Parent-chips">
-            {asList(inheritance.left_blue_factors)
-              .concat(asList(inheritance.left_pink_factors), asList(inheritance.left_green_factors), asList(inheritance.left_white_factors))
-              .map((value) => decodeSpark(value, factorById))
-              .filter(Boolean)
-              .map((chip, index) => (
-                <span className="Parent-chip" key={`p1-${chip}-${index}`}>
-                  {chip}
-                </span>
-              ))}
-          </div>
-        </div>
-      )}
+      {(hasLeft || hasRight) && (
+        <div className="Parent-grandparents">
+          {hasLeft && (
+            <div className="Parent-section">
+              <h3 className="Parent-parent-heading">
+                <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} />
+                <span>P1 {inheritance.parent_left_id ? `(${leftName})` : ""}</span>
+              </h3>
+              <SparkChips
+                groups={[
+                  { values: inheritance.left_blue_factors, tone: "blue" },
+                  { values: inheritance.left_pink_factors, tone: "pink" },
+                  { values: inheritance.left_green_factors, tone: "green" },
+                  { values: inheritance.left_white_factors, tone: "white" },
+                ]}
+                factorById={factorById}
+              />
+            </div>
+          )}
 
-      {(inheritance.parent_right_id || inheritance.right_blue_factors || inheritance.right_white_factors) && (
-        <div className="Parent-section">
-          <h3 className="Parent-parent-heading">
-            <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} />
-            <span>P2 {inheritance.parent_right_id ? `(${rightName})` : ""}</span>
-          </h3>
-          <div className="Parent-chips">
-            {asList(inheritance.right_blue_factors)
-              .concat(asList(inheritance.right_pink_factors), asList(inheritance.right_green_factors), asList(inheritance.right_white_factors))
-              .map((value) => decodeSpark(value, factorById))
-              .filter(Boolean)
-              .map((chip, index) => (
-                <span className="Parent-chip" key={`p2-${chip}-${index}`}>
-                  {chip}
-                </span>
-              ))}
-          </div>
+          {hasRight && (
+            <div className="Parent-section">
+              <h3 className="Parent-parent-heading">
+                <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} />
+                <span>P2 {inheritance.parent_right_id ? `(${rightName})` : ""}</span>
+              </h3>
+              <SparkChips
+                groups={[
+                  { values: inheritance.right_blue_factors, tone: "blue" },
+                  { values: inheritance.right_pink_factors, tone: "pink" },
+                  { values: inheritance.right_green_factors, tone: "green" },
+                  { values: inheritance.right_white_factors, tone: "white" },
+                ]}
+                factorById={factorById}
+              />
+            </div>
+          )}
         </div>
       )}
     </article>
@@ -325,7 +341,7 @@ export default function Parent() {
   }
 
   return (
-    <div className="Parent-Container">
+    <div className={`Parent-Container${data ? " has-result" : ""}`}>
       <h1>Look up practice partner</h1>
       <p className="Parent-lead">
         Fetch inheritance data from a Practice ID or Trainer ID.
