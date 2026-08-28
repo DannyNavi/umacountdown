@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { e as getCharaByBaseId } from "../../data.js";
 import "./Parent.css";
@@ -276,15 +276,6 @@ export default function Parent() {
     return () => controller.abort();
   }, [id]);
 
-  const jsonText = useMemo(() => {
-    if (!data) return "";
-    try {
-      return JSON.stringify(data, null, 2);
-    } catch {
-      return String(data);
-    }
-  }, [data]);
-
   function onSubmit(event) {
     event.preventDefault();
     const next = draft.replace(/\D/g, "");
@@ -322,7 +313,6 @@ export default function Parent() {
       {loading ? <p className="Parent-status">Looking up {id}…</p> : null}
       {error ? <p className="Parent-status error">{error}</p> : null}
       {data ? <PartnerCard payload={data} factorById={factorById} /> : null}
-      {jsonText ? <pre className="Parent-json">{jsonText}</pre> : null}
     </div>
   );
 }
