@@ -225,6 +225,19 @@ function StarRow({ count }) {
   );
 }
 
+function SparkMeter({ count }) {
+  const filled = Math.min(3, Math.max(0, starCount(count)));
+  return (
+    <span className="Parent-spark-stars" aria-label={`${filled} of 3 stars`}>
+      {[0, 1, 2].map((index) => (
+        <span key={index} className={index < filled ? "filled" : "empty"} aria-hidden="true">
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function InspirationGrid({ groups, factorById, columns = 2, matchedIds }) {
   const chips = collectSparks(groups, factorById, matchedIds);
   if (!chips.length) {
@@ -238,8 +251,10 @@ function InspirationGrid({ groups, factorById, columns = 2, matchedIds }) {
           key={`${chip.tone}-${chip.name}-${index}`}
         >
           <span className={`Parent-insp-dot ${chip.tone}`} aria-hidden="true" />
-          <span className="Parent-insp-name">{chip.name}</span>
-          <StarRow count={chip.stars} />
+          <div className="Parent-insp-copy">
+            <span className="Parent-insp-name">{chip.name}</span>
+            <SparkMeter count={chip.stars} />
+          </div>
         </div>
       ))}
     </div>
