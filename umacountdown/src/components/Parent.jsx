@@ -16,6 +16,25 @@ const STAT_FACTORS = {
   50: "Wit",
 };
 
+// uma.moe factors.json type 2 = inheritable G1 race sparks (34 races).
+// Same list as GameTora / uma.guide race spark tables; kept as fallback before the factor table loads.
+const RACE_SPARK_FACTOR_TYPE = 2;
+const FALLBACK_RACE_SPARK_IDS = new Set([
+  "100010", "100020", "100030", "100040", "100050", "100060", "100070", "100080",
+  "100090", "100100", "100110", "100120", "100130", "100140", "100150", "100160",
+  "100170", "100180", "100190", "100200", "100210", "100220", "100230", "100240",
+  "100250", "100260", "100270", "100280", "100290", "100300", "100310", "100320",
+  "100330", "100340",
+]);
+
+function isRaceSparkFactor(factorId, factorById = new Map()) {
+  if (factorId == null || factorId === "") return false;
+  const id = String(factorId);
+  const meta = factorById.get(id);
+  if (meta != null) return Number(meta.type) === RACE_SPARK_FACTOR_TYPE;
+  return FALLBACK_RACE_SPARK_IDS.has(id);
+}
+
 const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
 const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const PRACTICE_CACHE_PREFIX = "uma-practice:";
@@ -207,7 +226,7 @@ function collectSparks(groups, factorById, matchedIds, hideRaceSparks = false) {
     asList(values)
       .map((value) => {
         const parsed = parseSpark(value, factorById);
-        if (!parsed) return null;
+        if (!parsed || isRaceSparkFactor(parsed.factorId, factorById)) return null;
         const nextTone = tone || "white";
         if (
           hideRaceSparks &&
@@ -226,20 +245,21 @@ function collectSparks(groups, factorById, matchedIds, hideRaceSparks = false) {
   );
 }
 
-function whiteFactorIds(values) {
+function whiteFactorIds(values, factorById = new Map()) {
   const ids = new Set();
   for (const value of asList(values)) {
-    const parsed = parseSpark(value);
-    if (parsed?.factorId) ids.add(parsed.factorId);
+    const parsed = parseSpark(value, factorById);
+    if (!parsed?.factorId || isRaceSparkFactor(parsed.factorId, factorById)) continue;
+    ids.add(parsed.factorId);
   }
   return ids;
 }
 
-function matchingWhiteIds(inheritance) {
+function matchingWhiteIds(inheritance, factorById = new Map()) {
   const sources = [
-    whiteFactorIds(inheritance.main_white_factors ?? inheritance.white_sparks),
-    whiteFactorIds(inheritance.left_white_factors),
-    whiteFactorIds(inheritance.right_white_factors),
+    whiteFactorIds(inheritance.main_white_factors ?? inheritance.white_sparks, factorById),
+    whiteFactorIds(inheritance.left_white_factors, factorById),
+    whiteFactorIds(inheritance.right_white_factors, factorById),
   ];
   const counts = new Map();
   for (const ids of sources) {
@@ -401,7 +421,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
     inheritance.parent_right_id ||
     inheritance.right_blue_factors ||
     inheritance.right_white_factors;
-  const matchedIds = matchingWhiteIds(inheritance);
+  const matchedIds = matchingWhiteIds(inheritance, factorById);
 
   return (
     <article className="Parent-details">
