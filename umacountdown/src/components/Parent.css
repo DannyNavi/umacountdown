@@ -166,23 +166,6 @@ html.parent-page {
   gap: 0.4rem;
 }
 
-.Parent-score {
-  padding: 0.02rem 0.4rem;
-  border-radius: 999px;
-  background: #2a2d38;
-  border: 1px solid var(--border);
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-h);
-}
-
-.Parent-trainer {
-  margin: 0;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  color: var(--uma-muted);
-}
-
 .Parent-chara-name {
   margin: 0;
   font-size: 0.98rem;
