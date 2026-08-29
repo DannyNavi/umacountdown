@@ -129,13 +129,7 @@ function charaStandUrl(cardId) {
   return `https://gametora.com/images/umamusume/characters/chara_stand_${prefix}_${full}.png`;
 }
 
-function formatScore(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return n.toLocaleString("en-US");
-}
-
-function CharaPortrait({ cardId, name, variant = "stand" }) {
+function charaStandUrl(cardId) {
   const src = charaStandUrl(cardId);
   const [failed, setFailed] = useState(false);
 
@@ -313,16 +307,6 @@ function pickTrainerName(payload, inheritance) {
   );
 }
 
-function StarRow({ count }) {
-  const n = starCount(count);
-  if (!n) return null;
-  return (
-    <span className="Parent-star-row" aria-label={`${n} star${n === 1 ? "" : "s"}`}>
-      {"★".repeat(n)}
-    </span>
-  );
-}
-
 function SparkMeter({ count }) {
   const filled = Math.min(3, Math.max(0, starCount(count)));
   return (
@@ -395,7 +379,6 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
   if (!inheritance) return null;
 
   const trainerName = pickTrainerName(payload, inheritance);
-  const rarity = inheritance.parent_rarity ?? inheritance.rarity;
   const cardId = inheritance.main_parent_id ?? inheritance.card_id;
   const charaName =
     inheritance.chara_name ||
@@ -403,7 +386,6 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
     inheritance.name ||
     charaNameFromId(cardId) ||
     (cardId != null ? `Card ${cardId}` : trainerName || "Practice partner");
-  const score = formatScore(inheritance.parent_rank ?? inheritance.rank ?? inheritance.eval_score);
   const leftName = charaNameFromId(inheritance.parent_left_id) || "P1";
   const rightName = charaNameFromId(inheritance.parent_right_id) || "P2";
   const hasLeft =
@@ -423,17 +405,12 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
       <div className="Parent-profile">
         <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
         <div className="Parent-profile-info">
-          <div className="Parent-profile-meta">
-            {rarity ? <StarRow count={rarity} /> : null}
-            {score ? <span className="Parent-score">{score}</span> : null}
-          </div>
           {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
           <h2 className="Parent-chara-name">{charaName}</h2>
         </div>
       </div>
 
-      <section className="Parent-block" aria-label="Inspiration">
-        <h3 className="Parent-block-title">Inspiration</h3>
+      <section className="Parent-block" aria-label="Sparks">
         <InspirationGrid
           groups={sparkGroups("main", inheritance)}
           factorById={factorById}
