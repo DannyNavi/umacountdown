@@ -40,7 +40,6 @@ const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const PRACTICE_CACHE_PREFIX = "uma-practice:";
 const PRACTICE_CACHE_TTL_MS = 60 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
-const RACE_SPARK_FACTOR_TYPES = new Set([2, 3]);
 
 function readHideRaceSparksPreference() {
   try {
@@ -56,11 +55,6 @@ function writeHideRaceSparksPreference(value) {
   } catch {
     // ignore quota / private mode
   }
-}
-
-function isRaceSpark(factorId, factorById) {
-  const type = factorById.get(String(factorId))?.type;
-  return type != null && RACE_SPARK_FACTOR_TYPES.has(type);
 }
 
 function readCachedFactors() {
@@ -226,12 +220,12 @@ function collectSparks(groups, factorById, matchedIds, hideRaceSparks = false) {
     asList(values)
       .map((value) => {
         const parsed = parseSpark(value, factorById);
-        if (!parsed || isRaceSparkFactor(parsed.factorId, factorById)) return null;
+        if (!parsed) return null;
         const nextTone = tone || "white";
         if (
           hideRaceSparks &&
           nextTone === "white" &&
-          isRaceSpark(parsed.factorId, factorById)
+          isRaceSparkFactor(parsed.factorId, factorById)
         ) {
           return null;
         }
@@ -245,21 +239,20 @@ function collectSparks(groups, factorById, matchedIds, hideRaceSparks = false) {
   );
 }
 
-function whiteFactorIds(values, factorById = new Map()) {
+function whiteFactorIds(values) {
   const ids = new Set();
   for (const value of asList(values)) {
-    const parsed = parseSpark(value, factorById);
-    if (!parsed?.factorId || isRaceSparkFactor(parsed.factorId, factorById)) continue;
-    ids.add(parsed.factorId);
+    const parsed = parseSpark(value);
+    if (parsed?.factorId) ids.add(parsed.factorId);
   }
   return ids;
 }
 
-function matchingWhiteIds(inheritance, factorById = new Map()) {
+function matchingWhiteIds(inheritance) {
   const sources = [
-    whiteFactorIds(inheritance.main_white_factors ?? inheritance.white_sparks, factorById),
-    whiteFactorIds(inheritance.left_white_factors, factorById),
-    whiteFactorIds(inheritance.right_white_factors, factorById),
+    whiteFactorIds(inheritance.main_white_factors ?? inheritance.white_sparks),
+    whiteFactorIds(inheritance.left_white_factors),
+    whiteFactorIds(inheritance.right_white_factors),
   ];
   const counts = new Map();
   for (const ids of sources) {
@@ -421,7 +414,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
     inheritance.parent_right_id ||
     inheritance.right_blue_factors ||
     inheritance.right_white_factors;
-  const matchedIds = matchingWhiteIds(inheritance, factorById);
+  const matchedIds = matchingWhiteIds(inheritance);
 
   return (
     <article className="Parent-details">
