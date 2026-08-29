@@ -7,16 +7,6 @@ import "./Shaz.css"
 import creek from "../images/creek2.png"
 import spark from "../images/spark.png"
 
-import gluema from "../images/STOP MAKING GLUEMAS AND START RETAINING C6.pdf?url";
-
-let pdf
-let currentPage = 1
-
-async function loadPdf (url) {
-    pdf = await pdfjsLib
-    
-}
-
 export default function Shaz(){
     const [displayTierlist, setDisplayTierlist] = useState(false)
     const [showSpark, setShowSpark] = useState(false)
