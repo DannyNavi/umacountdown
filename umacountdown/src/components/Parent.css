@@ -1,3 +1,17 @@
+html.parent-page {
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --bg: #16171d;
+  --border: #2e303a;
+  --code-bg: #1f2028;
+  --accent: #c084fc;
+  --accent-bg: rgba(192, 132, 252, 0.15);
+  --accent-border: rgba(192, 132, 252, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  color-scheme: dark;
+}
+
 .Parent-Container {
   max-width: 960px;
   margin: 0 auto;
@@ -51,9 +65,28 @@
 }
 
 .Parent-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.Parent-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   margin: 0 0 1.25rem;
   font-size: 0.9rem;
   color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.Parent-option input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .Parent-status {
@@ -67,22 +100,23 @@
 .Parent-details {
   --uma-green: #8fc31f;
   --uma-green-deep: #6ea318;
-  --uma-pill: #ececec;
-  --uma-pill-unique: #c5e85c;
-  --uma-text: #4a3b32;
-  --uma-muted: #7a6a5c;
+  --uma-pill: #2a2d38;
+  --uma-pill-unique: #3d4a22;
+  --uma-text: #e5e7eb;
+  --uma-muted: #9ca3af;
   --uma-star: #f3c317;
   --uma-dot-blue: #5eb6ff;
   --uma-dot-pink: #f48fb1;
   --uma-dot-green: #f4d03f;
-  --uma-dot-white: #d9d4cc;
+  --uma-dot-white: #8b8680;
   max-width: 520px;
   margin: 0 auto 1rem;
-  background: #fff;
+  background: var(--code-bg);
   color: var(--uma-text);
+  border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -109,7 +143,7 @@
   border-radius: 50%;
   object-fit: cover;
   object-position: 50% 12%;
-  background: #f3efe6;
+  background: #1a1b22;
   border: 2px solid #e2b84c;
   box-sizing: border-box;
   flex: 0 0 auto;
@@ -119,7 +153,7 @@
   display: grid;
   place-items: center;
   font-weight: 700;
-  color: #7a4a2b;
+  color: #f3e8dc;
 }
 
 .Parent-profile-info {
@@ -135,11 +169,11 @@
 .Parent-score {
   padding: 0.02rem 0.4rem;
   border-radius: 999px;
-  background: #fff;
-  border: 1px solid #d9d2c8;
+  background: #2a2d38;
+  border: 1px solid var(--border);
   font-size: 0.68rem;
   font-weight: 700;
-  color: #5c4a3a;
+  color: var(--text-h);
 }
 
 .Parent-trainer {
@@ -153,7 +187,7 @@
   margin: 0;
   font-size: 0.98rem;
   line-height: 1.15;
-  color: #7a4a2b;
+  color: #f3e8dc;
   font-weight: 800;
 }
 
@@ -228,11 +262,11 @@
 }
 
 .Parent-insp-tile.blue {
-  background: #9fd4ff;
+  background: #1e3a5f;
 }
 
 .Parent-insp-tile.pink {
-  background: #f7b3cc;
+  background: #4a2035;
 }
 
 .Parent-insp-tile.green,
@@ -241,11 +275,11 @@
 }
 
 .Parent-insp-tile.white {
-  background: #eceae4;
+  background: #33363f;
 }
 
 .Parent-insp-tile.match {
-  background: #ffe59a;
+  background: #4a3d18;
   box-shadow: inset 0 0 0 1.5px #e2b84c;
 }
 
@@ -255,7 +289,7 @@
   margin-top: 0.18rem;
   border-radius: 50%;
   flex: 0 0 auto;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .Parent-insp-dot.blue {
@@ -308,7 +342,7 @@
 }
 
 .Parent-spark-stars .empty {
-  color: #b5afa5;
+  color: #5c574f;
 }
 
 .Parent-empty {

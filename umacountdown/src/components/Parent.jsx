@@ -20,6 +20,29 @@ const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
 const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const PRACTICE_CACHE_PREFIX = "uma-practice:";
 const PRACTICE_CACHE_TTL_MS = 60 * 60 * 1000;
+const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
+const RACE_SPARK_FACTOR_TYPES = new Set([2, 3]);
+
+function readHideRaceSparksPreference() {
+  try {
+    return localStorage.getItem(HIDE_RACE_SPARKS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeHideRaceSparksPreference(value) {
+  try {
+    localStorage.setItem(HIDE_RACE_SPARKS_KEY, value ? "1" : "0");
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function isRaceSpark(factorId, factorById) {
+  const type = factorById.get(String(factorId))?.type;
+  return type != null && RACE_SPARK_FACTOR_TYPES.has(type);
+}
 
 function readCachedFactors() {
   try {
@@ -179,13 +202,20 @@ function asList(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-function collectSparks(groups, factorById, matchedIds) {
+function collectSparks(groups, factorById, matchedIds, hideRaceSparks = false) {
   return groups.flatMap(({ values, tone }) =>
     asList(values)
       .map((value) => {
         const parsed = parseSpark(value, factorById);
         if (!parsed) return null;
         const nextTone = tone || "white";
+        if (
+          hideRaceSparks &&
+          nextTone === "white" &&
+          isRaceSpark(parsed.factorId, factorById)
+        ) {
+          return null;
+        }
         return {
           ...parsed,
           tone: nextTone,
@@ -293,8 +323,14 @@ function SparkMeter({ count }) {
   );
 }
 
-function InspirationGrid({ groups, factorById, columns = 2, matchedIds }) {
-  const chips = collectSparks(groups, factorById, matchedIds);
+function InspirationGrid({
+  groups,
+  factorById,
+  columns = 2,
+  matchedIds,
+  hideRaceSparks = false,
+}) {
+  const chips = collectSparks(groups, factorById, matchedIds, hideRaceSparks);
   if (!chips.length) {
     return <p className="Parent-empty">No inspiration data.</p>;
   }
@@ -341,7 +377,7 @@ function sparkGroups(prefix, inheritance) {
   ];
 }
 
-function PartnerCard({ payload, factorById }) {
+function PartnerCard({ payload, factorById, hideRaceSparks }) {
   const inheritance = pickInheritance(payload);
   if (!inheritance) return null;
 
@@ -385,7 +421,13 @@ function PartnerCard({ payload, factorById }) {
 
       <section className="Parent-block" aria-label="Inspiration">
         <h3 className="Parent-block-title">Inspiration</h3>
-        <InspirationGrid groups={sparkGroups("main", inheritance)} factorById={factorById} columns={2} matchedIds={matchedIds} />
+        <InspirationGrid
+          groups={sparkGroups("main", inheritance)}
+          factorById={factorById}
+          columns={2}
+          matchedIds={matchedIds}
+          hideRaceSparks={hideRaceSparks}
+        />
       </section>
 
       {(hasLeft || hasRight) && (
@@ -396,7 +438,13 @@ function PartnerCard({ payload, factorById }) {
                 <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} variant="circle" />
                 <span>P1 {leftName}</span>
               </h3>
-              <InspirationGrid groups={sparkGroups("left", inheritance)} factorById={factorById} columns={2} matchedIds={matchedIds} />
+              <InspirationGrid
+                groups={sparkGroups("left", inheritance)}
+                factorById={factorById}
+                columns={2}
+                matchedIds={matchedIds}
+                hideRaceSparks={hideRaceSparks}
+              />
             </section>
           )}
           {hasRight && (
@@ -405,7 +453,13 @@ function PartnerCard({ payload, factorById }) {
                 <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} variant="circle" />
                 <span>P2 {rightName}</span>
               </h3>
-              <InspirationGrid groups={sparkGroups("right", inheritance)} factorById={factorById} columns={2} matchedIds={matchedIds} />
+              <InspirationGrid
+                groups={sparkGroups("right", inheritance)}
+                factorById={factorById}
+                columns={2}
+                matchedIds={matchedIds}
+                hideRaceSparks={hideRaceSparks}
+              />
             </section>
           )}
         </div>
@@ -421,12 +475,19 @@ export default function Parent() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hideRaceSparks, setHideRaceSparks] = useState(readHideRaceSparksPreference);
   const [factorById, setFactorById] = useState(() => {
     const items = readCachedFactors();
     return items
       ? new Map(items.map((factor) => [String(factor.id), factor]))
       : new Map();
   });
+
+  function onHideRaceSparksChange(event) {
+    const next = event.target.checked;
+    setHideRaceSparks(next);
+    writeHideRaceSparksPreference(next);
+  }
 
   useEffect(() => {
     document.documentElement.classList.add("parent-page");
@@ -542,11 +603,26 @@ export default function Parent() {
         <strong>Trainer ID:</strong> permanent 12-digit account ID
       </p>
 
+      <label className="Parent-option">
+        <input
+          type="checkbox"
+          checked={hideRaceSparks}
+          onChange={onHideRaceSparksChange}
+        />
+        Hide race sparks
+      </label>
+
       {loading ? (
         <p className="Parent-status">{data ? `Updating ${id}…` : `Looking up ${id}…`}</p>
       ) : null}
       {error ? <p className="Parent-status error">{error}</p> : null}
-      {data ? <PartnerCard payload={data} factorById={factorById} /> : null}
+      {data ? (
+        <PartnerCard
+          payload={data}
+          factorById={factorById}
+          hideRaceSparks={hideRaceSparks}
+        />
+      ) : null}
     </div>
   );
 }
