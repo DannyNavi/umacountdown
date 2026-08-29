@@ -129,7 +129,7 @@ function charaStandUrl(cardId) {
   return `https://gametora.com/images/umamusume/characters/chara_stand_${prefix}_${full}.png`;
 }
 
-function charaStandUrl(cardId) {
+function CharaPortrait({ cardId, name, variant = "stand" }) {
   const src = charaStandUrl(cardId);
   const [failed, setFailed] = useState(false);
 
