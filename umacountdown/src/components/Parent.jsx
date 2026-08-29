@@ -307,16 +307,6 @@ function pickTrainerName(payload, inheritance) {
   );
 }
 
-function StarRow({ count }) {
-  const n = starCount(count);
-  if (!n) return null;
-  return (
-    <span className="Parent-star-row" aria-label={`${n} star${n === 1 ? "" : "s"}`}>
-      {"★".repeat(n)}
-    </span>
-  );
-}
-
 function SparkMeter({ count }) {
   const filled = Math.min(3, Math.max(0, starCount(count)));
   return (
@@ -388,12 +378,14 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
   const inheritance = pickInheritance(payload);
   if (!inheritance) return null;
 
+  const trainerName = pickTrainerName(payload, inheritance);
+  const cardId = inheritance.main_parent_id ?? inheritance.card_id;
   const charaName =
     inheritance.chara_name ||
     inheritance.character_name ||
     inheritance.name ||
     charaNameFromId(cardId) ||
-    (cardId != null ? `Card ${cardId}` : pickTrainerName(payload, inheritance) || "Practice partner");
+    (cardId != null ? `Card ${cardId}` : trainerName || "Practice partner");
   const leftName = charaNameFromId(inheritance.parent_left_id) || "P1";
   const rightName = charaNameFromId(inheritance.parent_right_id) || "P2";
   const hasLeft =
@@ -413,9 +405,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
       <div className="Parent-profile">
         <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
         <div className="Parent-profile-info">
-          <div className="Parent-profile-meta">
-            {rarity ? <StarRow count={rarity} /> : null}
-          </div>
+          {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
           <h2 className="Parent-chara-name">{charaName}</h2>
         </div>
       </div>

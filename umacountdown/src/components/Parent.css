@@ -160,10 +160,11 @@ html.parent-page {
   min-width: 0;
 }
 
-.Parent-profile-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+.Parent-trainer {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--uma-muted);
 }
 
 .Parent-chara-name {
@@ -172,14 +173,6 @@ html.parent-page {
   line-height: 1.15;
   color: #f3e8dc;
   font-weight: 800;
-}
-
-.Parent-star-row {
-  color: var(--uma-star);
-  letter-spacing: 0.02em;
-  font-size: 0.62rem;
-  line-height: 1;
-  flex: 0 0 auto;
 }
 
 .Parent-block {
