@@ -129,13 +129,7 @@ function charaStandUrl(cardId) {
   return `https://gametora.com/images/umamusume/characters/chara_stand_${prefix}_${full}.png`;
 }
 
-function formatScore(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return n.toLocaleString("en-US");
-}
-
-function CharaPortrait({ cardId, name, variant = "stand" }) {
+function charaStandUrl(cardId) {
   const src = charaStandUrl(cardId);
   const [failed, setFailed] = useState(false);
 
@@ -394,16 +388,12 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
   const inheritance = pickInheritance(payload);
   if (!inheritance) return null;
 
-  const trainerName = pickTrainerName(payload, inheritance);
-  const rarity = inheritance.parent_rarity ?? inheritance.rarity;
-  const cardId = inheritance.main_parent_id ?? inheritance.card_id;
   const charaName =
     inheritance.chara_name ||
     inheritance.character_name ||
     inheritance.name ||
     charaNameFromId(cardId) ||
-    (cardId != null ? `Card ${cardId}` : trainerName || "Practice partner");
-  const score = formatScore(inheritance.parent_rank ?? inheritance.rank ?? inheritance.eval_score);
+    (cardId != null ? `Card ${cardId}` : pickTrainerName(payload, inheritance) || "Practice partner");
   const leftName = charaNameFromId(inheritance.parent_left_id) || "P1";
   const rightName = charaNameFromId(inheritance.parent_right_id) || "P2";
   const hasLeft =
@@ -425,15 +415,12 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
         <div className="Parent-profile-info">
           <div className="Parent-profile-meta">
             {rarity ? <StarRow count={rarity} /> : null}
-            {score ? <span className="Parent-score">{score}</span> : null}
           </div>
-          {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
           <h2 className="Parent-chara-name">{charaName}</h2>
         </div>
       </div>
 
-      <section className="Parent-block" aria-label="Inspiration">
-        <h3 className="Parent-block-title">Inspiration</h3>
+      <section className="Parent-block" aria-label="Sparks">
         <InspirationGrid
           groups={sparkGroups("main", inheritance)}
           factorById={factorById}
