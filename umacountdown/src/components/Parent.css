@@ -160,22 +160,6 @@ html.parent-page {
   min-width: 0;
 }
 
-.Parent-profile-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.Parent-score {
-  padding: 0.02rem 0.4rem;
-  border-radius: 999px;
-  background: #2a2d38;
-  border: 1px solid var(--border);
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-h);
-}
-
 .Parent-trainer {
   margin: 0;
   font-size: 0.7rem;
@@ -189,14 +173,6 @@ html.parent-page {
   line-height: 1.15;
   color: #f3e8dc;
   font-weight: 800;
-}
-
-.Parent-star-row {
-  color: var(--uma-star);
-  letter-spacing: 0.02em;
-  font-size: 0.62rem;
-  line-height: 1;
-  flex: 0 0 auto;
 }
 
 .Parent-block {
