@@ -84,7 +84,8 @@ function writeStoredIdKind(kind) {
 }
 
 function normalizeIdKind(value, fallbackId) {
-  if (value === ID_KIND_PARENT || value === ID_KIND_PARTNER) return value;
+  if (value === "trainer" || value === ID_KIND_PARENT) return ID_KIND_PARENT;
+  if (value === ID_KIND_PARTNER) return ID_KIND_PARTNER;
   if (fallbackId) return inferIdKind(fallbackId);
   return readStoredIdKind() || ID_KIND_PARENT;
 }
@@ -619,7 +620,7 @@ export default function Parent() {
     <div className={`Parent-Container${data ? " has-result" : ""}`}>
       <h1>Look up practice partner</h1>
       <p className="Parent-lead">
-        Fetch inheritance from a Parent ID or Partner ID.
+        Fetch inheritance from a Trainer ID or Partner ID.
       </p>
 
       <form className="Parent-form" onSubmit={onSubmit}>
@@ -629,7 +630,7 @@ export default function Parent() {
             aria-pressed={isParentId}
             onClick={() => setIdKind(ID_KIND_PARENT)}
           >
-            Parent ID
+            Trainer ID
           </button>
           <button
             type="button"
@@ -643,13 +644,13 @@ export default function Parent() {
           type="text"
           inputMode="numeric"
           maxLength={isParentId ? 16 : 9}
-          placeholder={isParentId ? "Parent ID" : "Partner ID"}
+          placeholder={isParentId ? "Trainer ID" : "Partner ID"}
           value={draft}
           onChange={(event) => {
             const digits = event.target.value.replace(/\D/g, "");
             setDraft(isParentId ? digits.slice(0, 16) : digits.slice(0, 9));
           }}
-          aria-label={isParentId ? "Parent ID" : "Partner ID"}
+          aria-label={isParentId ? "Trainer ID" : "Partner ID"}
         />
         <button
           type="submit"
@@ -659,17 +660,6 @@ export default function Parent() {
           Fetch
         </button>
       </form>
-      <p className="Parent-hint">
-        {isParentId ? (
-          <>
-            <strong>Parent ID:</strong> permanent trainer account ID
-          </>
-        ) : (
-          <>
-            <strong>Partner ID:</strong> 9-digit code from the in-game share button · expires after 24h
-          </>
-        )}
-      </p>
 
       <label className="Parent-option">
         <input

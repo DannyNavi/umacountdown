@@ -14,13 +14,15 @@ export function inferIdKind(id) {
 export function parsePracticeLookup(id, type) {
   const partnerId = String(id ?? "").trim();
   if (!/^\d+$/.test(partnerId)) {
-    return { error: "Enter a Parent ID or Partner ID" };
+    return { error: "Enter a Trainer ID or Partner ID" };
   }
 
   const kind =
-    type === ID_KIND_PARENT || type === ID_KIND_PARTNER
-      ? type
-      : inferIdKind(partnerId);
+    type === "trainer" || type === ID_KIND_PARENT
+      ? ID_KIND_PARENT
+      : type === ID_KIND_PARTNER
+        ? ID_KIND_PARTNER
+        : inferIdKind(partnerId);
 
   if (kind === ID_KIND_PARTNER) {
     if (!/^\d{9}$/.test(partnerId)) {
@@ -29,9 +31,9 @@ export function parsePracticeLookup(id, type) {
     return { partnerId, kind };
   }
 
-  // Trainer / Parent IDs are not always 12 digits.
+  // Trainer IDs are not always 12 digits.
   if (partnerId.length > 16) {
-    return { error: "Enter a Parent ID" };
+    return { error: "Enter a Trainer ID" };
   }
   return { partnerId, kind };
 }
