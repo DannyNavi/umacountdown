@@ -44,6 +44,13 @@ test("parsePracticeLookup keeps a 9-digit code as Parent ID when typed", () => {
   });
 });
 
+test("parsePracticeLookup accepts type=trainer as a Parent ID", () => {
+  assert.deepEqual(parsePracticeLookup("1234567", "trainer"), {
+    partnerId: "1234567",
+    kind: "parent",
+  });
+});
+
 test("inferIdKind and cache TTL follow parent vs partner", () => {
   assert.equal(inferIdKind("711269443937"), "parent");
   assert.equal(inferIdKind("123456789"), "partner");
