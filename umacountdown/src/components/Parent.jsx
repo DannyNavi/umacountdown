@@ -339,10 +339,8 @@ function InspirationGrid({
           key={`${chip.tone}-${chip.name}-${index}`}
         >
           <span className={`Parent-insp-dot ${chip.tone}`} aria-hidden="true" />
-          <div className="Parent-insp-copy">
-            <span className="Parent-insp-name">{chip.name}</span>
-            <SparkMeter count={chip.stars} />
-          </div>
+          <span className="Parent-insp-name">{chip.name}</span>
+          <SparkMeter count={chip.stars} />
         </div>
       ))}
     </div>
