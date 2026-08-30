@@ -3,14 +3,38 @@ import GachaCard from "./GachaCard";
 import CountdownTimer from "./CountdownTimer";
 import "../App.css"
 
-const PAGE_SIZE = 1; 
+const PAGE_SIZE = 1;
+
+/** Pick the present banner by start date only (end dates in the schedule are unreliable). */
+function findPresentPageIndex(banners) {
+  if (!banners.length) return 0;
+  const now = Math.floor(Date.now() / 1000);
+
+  let latestStarted = -1;
+  for (let i = 0; i < banners.length; i++) {
+    if (banners[i].start_date <= now) {
+      if (
+        latestStarted < 0 ||
+        banners[i].start_date >= banners[latestStarted].start_date
+      ) {
+        latestStarted = i;
+      }
+    }
+  }
+  if (latestStarted >= 0) return latestStarted;
+
+  const upcoming = banners.findIndex((b) => b.start_date > now);
+  if (upcoming >= 0) return upcoming;
+
+  return banners.length - 1;
+}
 
 export default function Countdown() {
   const [allIds, setAllIds] = useState([]);
   const [gachas, setGachas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(65); 
-  const [inputPage, setInputPage] = useState("66"); 
+  const [page, setPage] = useState(0);
+  const [inputPage, setInputPage] = useState("1");
   const [viewMode, setViewMode] = useState("umas");
 
   useEffect(() => {
@@ -18,7 +42,7 @@ export default function Countdown() {
       try {
         const response = await fetch("/api/v1/gacha");
         const ids = await response.json();
-        setAllIds(ids);
+        setAllIds(Array.isArray(ids) ? ids : []);
       } catch (error) {
         console.error("Failed to fetch gacha IDs:", error);
       } finally {
@@ -37,17 +61,15 @@ export default function Countdown() {
 
   const totalPages = Math.ceil(filteredIds.length / PAGE_SIZE);
 
+  // Jump to the present (or next) banner whenever the list / mode is ready
+  useEffect(() => {
+    if (filteredIds.length === 0) return;
+    setPage(findPresentPageIndex(filteredIds));
+  }, [filteredIds, viewMode]);
+
   useEffect(() => {
     setInputPage((page + 1).toString());
   }, [page]);
-
-  useEffect(() => {
-    if(viewMode=="umas"){
-      setPage(66)
-    }
-    else
-    setPage(63);
-  }, [viewMode]);
 
   useEffect(() => {
     if (filteredIds.length === 0) {
@@ -105,7 +127,10 @@ export default function Countdown() {
       gachas.reduce((acc, gacha) => {
         const key = gacha.start_date;
         if (!acc[key]) {
-          acc[key] = { start_date: gacha.start_date, banners: [] };
+          acc[key] = {
+            start_date: gacha.start_date,
+            banners: [],
+          };
         }
         acc[key].banners.push(gacha);
         return acc;
@@ -116,20 +141,32 @@ export default function Countdown() {
   return (
     <div>
       <div className="view-modes">
-        <button className={viewMode === "umas" ? "active" : ""} onClick={() => setViewMode("umas")}>
+        <button
+          type="button"
+          className={viewMode === "umas" ? "active" : ""}
+          onClick={() => setViewMode("umas")}
+        >
           Characters
         </button>
-        <button className={viewMode === "supports" ? "active" : ""} onClick={() => setViewMode("supports")}>
+        <button
+          type="button"
+          className={viewMode === "supports" ? "active" : ""}
+          onClick={() => setViewMode("supports")}
+        >
           Supports
         </button>
       </div>
 
-      <div className="pagination-controls" style={{ marginTop: "10px", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
-        <button disabled={page === 0 || loading} onClick={() => setPage(page - 1)}>
+      <div className="pagination-controls">
+        <button
+          type="button"
+          disabled={page === 0 || loading}
+          onClick={() => setPage(page - 1)}
+        >
           Previous
         </button>
         
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div className="pagination-page">
           <span>Page</span>
          <input
           type="number"
@@ -140,19 +177,15 @@ export default function Countdown() {
           onKeyDown={handleKeyDown}
           onBlur={commitPageChange}
           disabled={totalPages === 0 || loading}
-          style={{
-            width: "55px",
-            textAlign: "center",
-            fontSize: "1rem",
-            padding: "2px",
-            borderRadius: "4px",
-            border: "1px solid #ccc"
-          }}
         />
           <span>of {totalPages}</span>
         </div>
 
-        <button disabled={page >= totalPages - 1 || loading} onClick={() => setPage(page + 1)}>
+        <button
+          type="button"
+          disabled={page >= totalPages - 1 || loading}
+          onClick={() => setPage(page + 1)}
+        >
           Next
         </button>
       </div>
@@ -164,17 +197,20 @@ export default function Countdown() {
       ) : (
         <div className="gacha-grid">
           {grouped.map((group) => (
-            <div key={group.start_date}>
-              <CountdownTimer targetDate={group.start_date * 1000} eventName="Banner"/>
-              <div className="banner-grid">
-                {group.banners.map((banner) => (
-                  <div key={banner.id} className="banner-wrapper">
-                    {banner.image_url && <img className="banner-image" src={banner.image_url} alt="Gacha Banner Visual" />}
-                    <GachaCard key={banner.id} banner={banner} viewMode={viewMode} />
-                  </div>
-                ))}
+              <div key={group.start_date}>
+                <CountdownTimer
+                  targetDate={group.start_date * 1000}
+                  eventName="Banner"
+                />
+                <div className="banner-grid">
+                  {group.banners.map((banner) => (
+                    <div key={banner.id} className="banner-wrapper">
+                      {banner.image_url && <img className="banner-image" src={banner.image_url} alt="Gacha Banner Visual" />}
+                      <GachaCard key={banner.id} banner={banner} viewMode={viewMode} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
           ))}
         </div>
       )}
