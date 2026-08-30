@@ -203,10 +203,6 @@ html.parent-page {
   white-space: nowrap;
 }
 
-.Parent-tree-join {
-  display: none;
-}
-
 .Parent-lineage {
   display: grid;
   grid-template-columns: 1fr;
@@ -229,9 +225,9 @@ html.parent-page {
 
   .Parent-details.has-tree .Parent-tree {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) 28px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     align-items: center;
-    column-gap: 0.2rem;
+    column-gap: 0.7rem;
     padding: 0.2rem 0.4rem 0.45rem;
   }
 
@@ -244,39 +240,8 @@ html.parent-page {
     justify-content: center;
   }
 
-  .Parent-details.has-tree .Parent-tree-join {
-    display: block;
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    align-self: stretch;
-    min-height: 88px;
-    margin: 0;
-  }
-
-  .Parent-details.has-tree .Parent-tree-join::before,
-  .Parent-details.has-tree .Parent-tree-join::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--uma-green);
-    transform-origin: left center;
-  }
-
-  .Parent-details.has-tree .Parent-tree-join::before {
-    top: 25%;
-    transform: rotate(-28deg);
-  }
-
-  .Parent-details.has-tree .Parent-tree-join::after {
-    bottom: 25%;
-    transform: rotate(28deg);
-  }
-
   .Parent-details.has-tree .Parent-lineage {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     display: flex;
     flex-direction: column;

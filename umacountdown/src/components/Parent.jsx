@@ -425,8 +425,6 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
           </section>
         </div>
 
-        {hasTree ? <div className="Parent-tree-join" aria-hidden="true" /> : null}
-
         {hasTree && (
           <div className="Parent-lineage">
             {hasLeft && (
