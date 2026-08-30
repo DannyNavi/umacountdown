@@ -584,7 +584,11 @@ export default function Parent() {
         writeCachedPractice(id, body);
         const inheritance = pickInheritance(body);
         if (!inheritance && !body.error) {
-          setError("Lookup finished but no inheritance data was returned. The Practice ID may have expired.");
+          setError(
+            idKind === ID_KIND_PARENT
+              ? "This trainer has no inheritance data on uma.moe yet."
+              : "Lookup finished but no inheritance data was returned. The Partner ID may have expired."
+          );
         } else {
           setError("");
         }
