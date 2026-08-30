@@ -37,6 +37,31 @@ html.parent-page {
   margin-bottom: 0.75rem;
 }
 
+.Parent-id-flip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.Parent-id-flip button {
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.Parent-id-flip button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
 .Parent-form input {
   flex: 1 1 220px;
   min-width: 0;
@@ -48,7 +73,7 @@ html.parent-page {
   font: inherit;
 }
 
-.Parent-form button {
+.Parent-form-submit {
   padding: 0.65rem 1.1rem;
   border: none;
   border-radius: 8px;
@@ -59,7 +84,7 @@ html.parent-page {
   cursor: pointer;
 }
 
-.Parent-form button:disabled {
+.Parent-form-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -366,13 +391,23 @@ html.parent-page {
   .Parent-form {
     margin-bottom: 0.4rem;
     gap: 0.4rem;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
+  .Parent-id-flip {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .Parent-id-flip button,
   .Parent-form input,
-  .Parent-form button {
+  .Parent-form-submit {
     padding: 0.4rem 0.55rem;
     font-size: 0.85rem;
+  }
+
+  .Parent-id-flip button {
+    flex: 1;
   }
 
   .Parent-form input {

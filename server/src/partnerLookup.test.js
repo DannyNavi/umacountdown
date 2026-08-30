@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import {
   consumeSseText,
   extractFound,
+  inferIdKind,
   lookupPracticePartner,
+  parsePracticeLookup,
   parseSseBlock,
   pickSavedPartner,
+  practiceCacheTtlSeconds,
 } from "./partnerLookup.js";
 
 const SAMPLE_INHERITANCE = {
@@ -15,6 +18,38 @@ const SAMPLE_INHERITANCE = {
   trainer_name: "Asriel",
   account_id: "123456789012",
 };
+
+test("parsePracticeLookup accepts a short Parent ID when type is parent", () => {
+  assert.deepEqual(parsePracticeLookup("1234567", "parent"), {
+    partnerId: "1234567",
+    kind: "parent",
+  });
+});
+
+test("parsePracticeLookup rejects a short Partner ID", () => {
+  assert.equal(parsePracticeLookup("1234567", "partner").error, "Enter a 9-digit Partner ID");
+});
+
+test("parsePracticeLookup treats a 9-digit code as Partner ID without type", () => {
+  assert.deepEqual(parsePracticeLookup("123456789"), {
+    partnerId: "123456789",
+    kind: "partner",
+  });
+});
+
+test("parsePracticeLookup keeps a 9-digit code as Parent ID when typed", () => {
+  assert.deepEqual(parsePracticeLookup("123456789", "parent"), {
+    partnerId: "123456789",
+    kind: "parent",
+  });
+});
+
+test("inferIdKind and cache TTL follow parent vs partner", () => {
+  assert.equal(inferIdKind("711269443937"), "parent");
+  assert.equal(inferIdKind("123456789"), "partner");
+  assert.equal(practiceCacheTtlSeconds("parent"), 600);
+  assert.equal(practiceCacheTtlSeconds("partner"), 21600);
+});
 
 test("extractFound ignores a pending POST result with null inheritance", () => {
   assert.equal(
