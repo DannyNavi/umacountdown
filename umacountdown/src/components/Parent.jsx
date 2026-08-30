@@ -426,7 +426,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
         {hasTree && (
           <div className="Parent-lineage">
             {hasLeft && (
-              <section className="Parent-block" aria-label={`P1 ${leftName}`}>
+              <section className="Parent-block Parent-block--p1" aria-label={`P1 ${leftName}`}>
                 <h3 className="Parent-block-title">
                   <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} variant="circle" />
                   <span>P1 {leftName}</span>
@@ -441,7 +441,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
               </section>
             )}
             {hasRight && (
-              <section className="Parent-block" aria-label={`P2 ${rightName}`}>
+              <section className="Parent-block Parent-block--p2" aria-label={`P2 ${rightName}`}>
                 <h3 className="Parent-block-title">
                   <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} variant="circle" />
                   <span>P2 {rightName}</span>
