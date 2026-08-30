@@ -430,63 +430,68 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
     inheritance.right_blue_factors ||
     inheritance.right_white_factors;
   const matchedIds = matchingWhiteIds(inheritance);
+  const hasTree = Boolean(hasLeft || hasRight);
 
   return (
-    <article className="Parent-details">
+    <article className={`Parent-details${hasTree ? " has-tree" : ""}`}>
       <div className="Parent-details-bar">Practice Partner</div>
 
-      <div className="Parent-profile">
-        <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
-        <div className="Parent-profile-info">
-          {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
-          <h2 className="Parent-chara-name">{charaName}</h2>
+      <div className="Parent-tree">
+        <div className="Parent-tree-main">
+          <div className="Parent-profile">
+            <CharaPortrait cardId={cardId} name={charaName} variant="circle" />
+            <div className="Parent-profile-info">
+              {trainerName ? <p className="Parent-trainer">{trainerName}</p> : null}
+              <h2 className="Parent-chara-name">{charaName}</h2>
+            </div>
+          </div>
+
+          <section className="Parent-block" aria-label="Sparks">
+            <InspirationGrid
+              groups={sparkGroups("main", inheritance)}
+              factorById={factorById}
+              columns={2}
+              matchedIds={matchedIds}
+              hideRaceSparks={hideRaceSparks}
+            />
+          </section>
         </div>
+
+        {hasTree && (
+          <div className="Parent-lineage">
+            {hasLeft && (
+              <section className="Parent-block Parent-block--p1" aria-label={`P1 ${leftName}`}>
+                <h3 className="Parent-block-title">
+                  <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} variant="circle" />
+                  <span>P1 {leftName}</span>
+                </h3>
+                <InspirationGrid
+                  groups={sparkGroups("left", inheritance)}
+                  factorById={factorById}
+                  columns={2}
+                  matchedIds={matchedIds}
+                  hideRaceSparks={hideRaceSparks}
+                />
+              </section>
+            )}
+            {hasRight && (
+              <section className="Parent-block Parent-block--p2" aria-label={`P2 ${rightName}`}>
+                <h3 className="Parent-block-title">
+                  <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} variant="circle" />
+                  <span>P2 {rightName}</span>
+                </h3>
+                <InspirationGrid
+                  groups={sparkGroups("right", inheritance)}
+                  factorById={factorById}
+                  columns={2}
+                  matchedIds={matchedIds}
+                  hideRaceSparks={hideRaceSparks}
+                />
+              </section>
+            )}
+          </div>
+        )}
       </div>
-
-      <section className="Parent-block" aria-label="Sparks">
-        <InspirationGrid
-          groups={sparkGroups("main", inheritance)}
-          factorById={factorById}
-          columns={2}
-          matchedIds={matchedIds}
-          hideRaceSparks={hideRaceSparks}
-        />
-      </section>
-
-      {(hasLeft || hasRight) && (
-        <div className="Parent-lineage">
-          {hasLeft && (
-            <section className="Parent-block" aria-label={`P1 ${leftName}`}>
-              <h3 className="Parent-block-title">
-                <CharaPortrait cardId={inheritance.parent_left_id} name={leftName} variant="circle" />
-                <span>P1 {leftName}</span>
-              </h3>
-              <InspirationGrid
-                groups={sparkGroups("left", inheritance)}
-                factorById={factorById}
-                columns={2}
-                matchedIds={matchedIds}
-                hideRaceSparks={hideRaceSparks}
-              />
-            </section>
-          )}
-          {hasRight && (
-            <section className="Parent-block" aria-label={`P2 ${rightName}`}>
-              <h3 className="Parent-block-title">
-                <CharaPortrait cardId={inheritance.parent_right_id} name={rightName} variant="circle" />
-                <span>P2 {rightName}</span>
-              </h3>
-              <InspirationGrid
-                groups={sparkGroups("right", inheritance)}
-                factorById={factorById}
-                columns={2}
-                matchedIds={matchedIds}
-                hideRaceSparks={hideRaceSparks}
-              />
-            </section>
-          )}
-        </div>
-      )}
     </article>
   );
 }
