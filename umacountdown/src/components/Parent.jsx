@@ -618,10 +618,6 @@ export default function Parent() {
 
   return (
     <div className={`Parent-Container${data ? " has-result" : ""}`}>
-      <h1>Look up practice partner</h1>
-      <p className="Parent-lead">
-        Fetch inheritance from a Trainer ID or Partner ID.
-      </p>
 
       <form className="Parent-form" onSubmit={onSubmit}>
         <div className="Parent-id-flip" role="group" aria-label="ID type">

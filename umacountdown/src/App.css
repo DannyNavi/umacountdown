@@ -3,3 +3,130 @@
   height: 10vh;
   object-fit: contain;
 }
+
+.view-modes {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0;
+}
+
+.view-modes button,
+.pagination-controls button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.1s ease, opacity 0.15s ease;
+}
+
+.view-modes button {
+  min-width: 7.5rem;
+}
+
+.view-modes button:hover,
+.pagination-controls button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.view-modes button:active,
+.pagination-controls button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.view-modes button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: none;
+}
+
+.view-modes button:focus-visible,
+.pagination-controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pagination-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 10px 0 15px;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+
+.pagination-controls > div,
+.pagination-page {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pagination-controls button {
+  flex: 0 0 auto;
+}
+
+.pagination-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pagination-controls input[type="number"] {
+  width: 55px;
+  min-height: 44px;
+  text-align: center;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.35rem;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+@media (max-width: 480px) {
+  .view-modes {
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem 0;
+  }
+
+  .view-modes button {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-width: 0;
+  }
+
+  .pagination-controls {
+    gap: 0.35rem;
+    padding: 0 0.5rem;
+  }
+
+  .pagination-controls button {
+    min-width: 0;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .pagination-controls input[type="number"] {
+    width: 48px;
+    min-height: 40px;
+  }
+}
