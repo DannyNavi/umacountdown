@@ -77,6 +77,16 @@ export function looksLikeInheritance(value) {
   );
 }
 
+function trainerNameFrom(payload, inheritance) {
+  return (
+    payload?.trainer_name ??
+    payload?.trainer?.name ??
+    payload?.trainer?.trainer_name ??
+    inheritance?.trainer_name ??
+    null
+  );
+}
+
 function foundFrom(inheritance, trainerName) {
   return {
     inheritance,
@@ -98,34 +108,35 @@ export function extractFound(payload) {
   if (looksLikeInheritance(payload.inheritance)) {
     return foundFrom(
       payload.inheritance,
-      payload.trainer_name ?? payload.inheritance.trainer_name
+      trainerNameFrom(payload, payload.inheritance)
     );
   }
   if (looksLikeInheritance(payload.result?.inheritance)) {
     return foundFrom(
       payload.result.inheritance,
-      payload.result.trainer_name ??
-        payload.trainer_name ??
-        payload.result.inheritance.trainer_name
+      trainerNameFrom(payload.result, payload.result.inheritance) ??
+        trainerNameFrom(payload, payload.result.inheritance)
     );
   }
   if (looksLikeInheritance(payload.stream?.inheritance)) {
     return foundFrom(
       payload.stream.inheritance,
-      payload.stream.trainer_name ?? payload.trainer_name
+      trainerNameFrom(payload.stream, payload.stream.inheritance) ??
+        trainerNameFrom(payload, payload.stream.inheritance)
     );
   }
   if (looksLikeInheritance(payload.data?.inheritance)) {
     return foundFrom(
       payload.data.inheritance,
-      payload.data.trainer_name ?? payload.trainer_name
+      trainerNameFrom(payload.data, payload.data.inheritance) ??
+        trainerNameFrom(payload, payload.data.inheritance)
     );
   }
   if (looksLikeInheritance(payload.result)) {
-    return foundFrom(payload.result, payload.result.trainer_name ?? payload.trainer_name);
+    return foundFrom(payload.result, trainerNameFrom(payload.result) ?? trainerNameFrom(payload));
   }
   if (looksLikeInheritance(payload)) {
-    return foundFrom(payload, payload.trainer_name);
+    return foundFrom(payload, trainerNameFrom(payload));
   }
 
   for (const nested of [payload.data, payload.payload, payload.partner, payload.saved]) {
@@ -279,6 +290,23 @@ function mergeAbortSignals(signals) {
 }
 
 
+async function fetchTrainerProfile(apiKey, accountId, deps) {
+  const {
+    fetch: fetchImpl = globalThis.fetch,
+    timeoutMs = PARTNER_LOOKUP_TIMEOUT_MS,
+    origin = UMA_MOE_ORIGIN,
+  } = deps;
+  const res = await fetchImpl(
+    `${origin}/api/v4/user/profile/${encodeURIComponent(accountId)}`,
+    {
+      headers: umaHeaders(apiKey),
+      signal: AbortSignal.timeout(timeoutMs),
+    }
+  );
+  const body = await readJsonSafe(res);
+  return { ok: res.ok, status: res.status, body };
+}
+
 export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   const {
     fetch: fetchImpl = globalThis.fetch,
@@ -288,9 +316,38 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     savedAttempts = 12,
     taskAttempts = 3,
     retryDelayMs = 250,
+    kind,
   } = deps;
 
   const headers = (extra) => umaHeaders(apiKey, extra);
+  const idKind = kind === ID_KIND_PARENT || kind === ID_KIND_PARTNER ? kind : inferIdKind(partnerId);
+
+  if (idKind === ID_KIND_PARENT) {
+    try {
+      const profile = await fetchTrainerProfile(apiKey, partnerId, deps);
+      const found = extractFound(profile.body);
+      if (profile.ok && found) {
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            trainer_name: found.trainer_name,
+            result: {
+              inheritance: found.inheritance,
+              trainer_name: found.trainer_name,
+              account_id: partnerId,
+            },
+            inheritance: found.inheritance,
+            profile: profile.body,
+          },
+          found,
+        };
+      }
+    } catch (err) {
+      if (!isAbortError(err)) throw err;
+      // Timed out talking to the profile API; fall through to partner lookup.
+    }
+  }
 
   async function umaGetJson(path) {
     const res = await fetchImpl(`${origin}${path}`, {
@@ -546,7 +603,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       status: 502,
       body: {
         error:
-          "Lookup finished but no inheritance data was returned. The Practice ID may have expired.",
+          idKind === ID_KIND_PARENT
+            ? "Trainer ID was not found. Check the ID and try again."
+            : "Lookup finished but no inheritance data was returned. The Partner ID may have expired.",
         ...startBody,
         result: {
           inheritance: null,
