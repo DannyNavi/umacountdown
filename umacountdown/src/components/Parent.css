@@ -251,7 +251,7 @@ html.parent-page {
     position: relative;
     align-self: stretch;
     min-height: 88px;
-    margin: 12% 0;
+    margin: 0;
   }
 
   .Parent-details.has-tree .Parent-tree-join::before,
@@ -266,13 +266,13 @@ html.parent-page {
   }
 
   .Parent-details.has-tree .Parent-tree-join::before {
-    top: 18%;
-    transform: rotate(-32deg);
+    top: 25%;
+    transform: rotate(-28deg);
   }
 
   .Parent-details.has-tree .Parent-tree-join::after {
-    bottom: 18%;
-    transform: rotate(32deg);
+    bottom: 25%;
+    transform: rotate(28deg);
   }
 
   .Parent-details.has-tree .Parent-lineage {
