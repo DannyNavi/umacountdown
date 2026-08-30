@@ -16,7 +16,11 @@ import {
   isAllowedVoter,
   normalizeVoterId,
 } from "./oshiWars/voters.js";
-import { lookupPracticePartner } from "./partnerLookup.js";
+import {
+  lookupPracticePartner,
+  parsePracticeLookup,
+  practiceCacheTtlSeconds,
+} from "./partnerLookup.js";
 export { OshiWarsStore } from "./oshiWars/OshiWarsStore.js";
 
 const app = new Hono();
@@ -256,16 +260,11 @@ function getUmaApiKey(env) {
   return env?.key || env?.UMA_API_KEY || "";
 }
 
-function practiceCacheTtlSeconds(partnerId) {
-  // 12-digit trainer IDs can change when they train a new uma.
-  // 9-digit practice IDs are a 24h snapshot.
-  return partnerId.length >= 12 ? 600 : 21600;
-}
-
-function practiceCacheKey(requestUrl, partnerId) {
+function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
   url.searchParams.set("id", partnerId);
+  url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });
 }
 
@@ -290,7 +289,7 @@ function putPracticeCache(c, cacheKey, response) {
 
 app.get("/api/v4/practice", async (c) => {
   const apiKey = getUmaApiKey(c.env);
-  const partnerId = (c.req.query("id") || "").trim();
+  const parsed = parsePracticeLookup(c.req.query("id"), c.req.query("type"));
 
   if (!apiKey) {
     return c.json(
@@ -298,14 +297,12 @@ app.get("/api/v4/practice", async (c) => {
       503
     );
   }
-  if (!/^\d{9,12}$/.test(partnerId)) {
-    return c.json(
-      { error: "Enter a 9-digit Practice ID or 12-digit Trainer ID" },
-      400
-    );
+  if (parsed.error) {
+    return c.json({ error: parsed.error }, 400);
   }
 
-  const cacheKey = practiceCacheKey(c.req.url, partnerId);
+  const { partnerId, kind } = parsed;
+  const cacheKey = practiceCacheKey(c.req.url, partnerId, kind);
   const cached = await matchPracticeCache(cacheKey);
   if (cached) {
     const headers = new Headers(cached.headers);
@@ -319,7 +316,7 @@ app.get("/api/v4/practice", async (c) => {
     if (result.ok && result.status === 200) {
       response.headers.set(
         "Cache-Control",
-        `public, max-age=${practiceCacheTtlSeconds(partnerId)}`
+        `public, max-age=${practiceCacheTtlSeconds(kind)}`
       );
       response.headers.set("X-Cache", "MISS");
       putPracticeCache(c, cacheKey, response);

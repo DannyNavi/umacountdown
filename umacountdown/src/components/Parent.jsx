@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { e as getCharaByBaseId } from "../../data.js";
 import "./Parent.css";
 
@@ -40,6 +40,9 @@ const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const PRACTICE_CACHE_PREFIX = "uma-practice:";
 const PRACTICE_CACHE_TTL_MS = 60 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
+const ID_KIND_KEY = "uma-parent-id-kind";
+const ID_KIND_PARENT = "parent";
+const ID_KIND_PARTNER = "partner";
 
 function readHideRaceSparksPreference() {
   try {
@@ -55,6 +58,35 @@ function writeHideRaceSparksPreference(value) {
   } catch {
     // ignore quota / private mode
   }
+}
+
+function inferIdKind(id) {
+  const digits = String(id || "").replace(/\D/g, "");
+  return digits.length === 9 ? ID_KIND_PARTNER : ID_KIND_PARENT;
+}
+
+function readStoredIdKind() {
+  try {
+    const value = localStorage.getItem(ID_KIND_KEY);
+    if (value === ID_KIND_PARENT || value === ID_KIND_PARTNER) return value;
+  } catch {
+    // ignore quota / private mode
+  }
+  return null;
+}
+
+function writeStoredIdKind(kind) {
+  try {
+    localStorage.setItem(ID_KIND_KEY, kind);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function normalizeIdKind(value, fallbackId) {
+  if (value === ID_KIND_PARENT || value === ID_KIND_PARTNER) return value;
+  if (fallbackId) return inferIdKind(fallbackId);
+  return readStoredIdKind() || ID_KIND_PARENT;
 }
 
 function readCachedFactors() {
@@ -461,6 +493,8 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
 export default function Parent() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const idKind = normalizeIdKind(searchParams.get("type"), id);
   const [draft, setDraft] = useState(id || "");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -526,9 +560,12 @@ export default function Parent() {
     setData(cached);
     setLoading(true);
 
-    fetch(`/api/v4/practice?id=${encodeURIComponent(id)}`, {
-      signal: controller.signal,
-    })
+    fetch(
+      `/api/v4/practice?id=${encodeURIComponent(id)}&type=${encodeURIComponent(idKind)}`,
+      {
+        signal: controller.signal,
+      }
+    )
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -557,40 +594,81 @@ export default function Parent() {
       });
 
     return () => controller.abort();
-  }, [id]);
+  }, [id, idKind]);
+
+  function setIdKind(next) {
+    writeStoredIdKind(next);
+    if (id) {
+      navigate(`/parent/${id}?type=${next}`, { replace: true });
+      return;
+    }
+    navigate(`/parent?type=${next}`, { replace: true });
+  }
 
   function onSubmit(event) {
     event.preventDefault();
     const next = draft.replace(/\D/g, "");
     if (!next) return;
-    navigate(`/parent/${next}`);
+    writeStoredIdKind(idKind);
+    navigate(`/parent/${next}?type=${idKind}`);
   }
+
+  const isParentId = idKind === ID_KIND_PARENT;
 
   return (
     <div className={`Parent-Container${data ? " has-result" : ""}`}>
       <h1>Look up practice partner</h1>
       <p className="Parent-lead">
-        Fetch inheritance data from a Practice ID or Trainer ID.
+        Fetch inheritance from a Parent ID or Partner ID.
       </p>
 
       <form className="Parent-form" onSubmit={onSubmit}>
+        <div className="Parent-id-flip" role="group" aria-label="ID type">
+          <button
+            type="button"
+            aria-pressed={isParentId}
+            onClick={() => setIdKind(ID_KIND_PARENT)}
+          >
+            Parent ID
+          </button>
+          <button
+            type="button"
+            aria-pressed={!isParentId}
+            onClick={() => setIdKind(ID_KIND_PARTNER)}
+          >
+            Partner ID
+          </button>
+        </div>
         <input
           type="text"
           inputMode="numeric"
-          maxLength={12}
-          placeholder="Practice ID (9 digits) or Trainer ID (12 digits)"
+          maxLength={isParentId ? 16 : 9}
+          placeholder={isParentId ? "Parent ID" : "Partner ID"}
           value={draft}
-          onChange={(event) => setDraft(event.target.value.replace(/\D/g, ""))}
-          aria-label="Practice partner ID"
+          onChange={(event) => {
+            const digits = event.target.value.replace(/\D/g, "");
+            setDraft(isParentId ? digits.slice(0, 16) : digits.slice(0, 9));
+          }}
+          aria-label={isParentId ? "Parent ID" : "Partner ID"}
         />
-        <button type="submit" disabled={loading || !draft}>
+        <button
+          type="submit"
+          className="Parent-form-submit"
+          disabled={loading || !draft || (!isParentId && draft.length !== 9)}
+        >
           Fetch
         </button>
       </form>
       <p className="Parent-hint">
-        <strong>Practice ID:</strong> 9-digit code from the in-game share button · expires after 24h
-        {" · "}
-        <strong>Trainer ID:</strong> permanent 12-digit account ID
+        {isParentId ? (
+          <>
+            <strong>Parent ID:</strong> permanent trainer account ID
+          </>
+        ) : (
+          <>
+            <strong>Partner ID:</strong> 9-digit code from the in-game share button · expires after 24h
+          </>
+        )}
       </p>
 
       <label className="Parent-option">

@@ -1,7 +1,46 @@
 const UMA_MOE_ORIGIN = "https://uma.moe";
 const PARTNER_LOOKUP_TIMEOUT_MS = 45000;
+export const ID_KIND_PARENT = "parent";
+export const ID_KIND_PARTNER = "partner";
 
 export { UMA_MOE_ORIGIN, PARTNER_LOOKUP_TIMEOUT_MS };
+
+export function inferIdKind(id) {
+  const digits = String(id || "").replace(/\D/g, "");
+  // Legacy /parent/:id links used length to tell the two apart.
+  return digits.length === 9 ? ID_KIND_PARTNER : ID_KIND_PARENT;
+}
+
+export function parsePracticeLookup(id, type) {
+  const partnerId = String(id ?? "").trim();
+  if (!/^\d+$/.test(partnerId)) {
+    return { error: "Enter a Parent ID or Partner ID" };
+  }
+
+  const kind =
+    type === ID_KIND_PARENT || type === ID_KIND_PARTNER
+      ? type
+      : inferIdKind(partnerId);
+
+  if (kind === ID_KIND_PARTNER) {
+    if (!/^\d{9}$/.test(partnerId)) {
+      return { error: "Enter a 9-digit Partner ID" };
+    }
+    return { partnerId, kind };
+  }
+
+  // Trainer / Parent IDs are not always 12 digits.
+  if (partnerId.length > 16) {
+    return { error: "Enter a Parent ID" };
+  }
+  return { partnerId, kind };
+}
+
+export function practiceCacheTtlSeconds(kind) {
+  // Parent/trainer IDs can change when they train a new uma.
+  // Partner/practice IDs are a 24h snapshot.
+  return kind === ID_KIND_PARENT ? 600 : 21600;
+}
 
 export function umaHeaders(apiKey, extra = {}) {
   return {
