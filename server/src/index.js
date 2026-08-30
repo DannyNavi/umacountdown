@@ -311,7 +311,7 @@ app.get("/api/v4/practice", async (c) => {
   }
 
   try {
-    const result = await lookupPracticePartner(apiKey, partnerId);
+    const result = await lookupPracticePartner(apiKey, partnerId, { kind });
     const response = c.json(result.body, result.status);
     if (result.ok && result.status === 200) {
       response.headers.set(

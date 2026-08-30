@@ -81,6 +81,19 @@ test("extractFound uses stream inheritance even when POST result is null", () =>
   assert.equal(found.trainer_name, "Asriel");
 });
 
+test("extractFound reads uma.moe trainer profile inheritance", () => {
+  const found = extractFound({
+    trainer: { name: "TestN", account_id: "514508659411" },
+    inheritance: {
+      account_id: "514508659411",
+      main_parent_id: 100401,
+      parent_rarity: 5,
+    },
+  });
+  assert.equal(found.inheritance.main_parent_id, 100401);
+  assert.equal(found.trainer_name, "TestN");
+});
+
 test("extractFound treats saved partner rows as inheritance", () => {
   const found = extractFound({
     account_id: "163368214",
@@ -212,6 +225,34 @@ function sseResponse(text) {
   });
 }
 
+test("lookup uses the trainer profile API for Trainer IDs", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    calls.push(path);
+    if (path === "/api/v4/user/profile/514508659411") {
+      return jsonResponse({
+        trainer: { name: "TestN", account_id: "514508659411" },
+        inheritance: { ...SAMPLE_INHERITANCE, account_id: "514508659411" },
+      });
+    }
+    return jsonResponse({ error: `unhandled ${path}` }, 404);
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "514508659411", {
+    fetch: fetchImpl,
+    kind: "parent",
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.body.trainer_name, "TestN");
+  assert.equal(result.body.inheritance.main_parent_id, 100401);
+  assert.deepEqual(calls, ["/api/v4/user/profile/514508659411"]);
+});
+
 test("lookup uses saved partner when completed SSE has no inheritance", async () => {
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
@@ -312,7 +353,7 @@ test("lookup returns 502 instead of an empty success when nothing is found", asy
   });
   assert.equal(result.ok, false);
   assert.equal(result.status, 502);
-  assert.match(result.body.error, /Practice ID may have expired/);
+  assert.match(result.body.error, /Partner ID may have expired/);
   assert.equal(result.body.result.inheritance, null);
 });
 
