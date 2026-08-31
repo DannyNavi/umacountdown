@@ -358,11 +358,12 @@ html.parent-page {
   }
 
   .Parent-details.has-tree .Parent-insp-grid {
-    gap: 0.12rem 0.14rem;
+    gap: 0.38rem 0.14rem;
+    padding-bottom: 0.3rem;
   }
 
   .Parent-details.has-tree .Parent-insp-tile {
-    padding: 0.12rem 0.2rem 0.08rem 0.16rem;
+    padding: 0.12rem 0.2rem 0.36rem 0.16rem;
   }
 
   .Parent-details.has-tree .Parent-insp-name {
@@ -426,7 +427,8 @@ html.parent-page {
 
 .Parent-insp-grid {
   display: grid;
-  gap: 0.18rem 0.22rem;
+  gap: 0.42rem 0.22rem;
+  padding-bottom: 0.35rem;
 }
 
 .Parent-insp-grid.cols-2 {
@@ -438,13 +440,15 @@ html.parent-page {
 }
 
 .Parent-insp-tile {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.28rem;
   min-width: 0;
   background: var(--uma-pill);
   border-radius: 8px;
-  padding: 0.18rem 0.32rem 0.14rem 0.26rem;
+  padding: 0.18rem 0.32rem 0.42rem 0.26rem;
+  overflow: visible;
 }
 
 .Parent-insp-tile.blue {
@@ -500,7 +504,6 @@ html.parent-page {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.06rem;
 }
 
 .Parent-insp-name {
@@ -517,6 +520,9 @@ html.parent-page {
 }
 
 .Parent-spark-stars {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -524,6 +530,8 @@ html.parent-page {
   font-size: 0.62rem;
   line-height: 1;
   letter-spacing: 0;
+  transform: translate(-50%, 50%);
+  pointer-events: none;
 }
 
 .Parent-spark-stars .filled {
