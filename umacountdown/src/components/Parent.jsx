@@ -40,6 +40,7 @@ const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const PRACTICE_CACHE_PREFIX = "uma-practice:";
 const PRACTICE_CACHE_TTL_MS = 60 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
+const MOBILE_ROW_KEY = "uma-parent-mobile-row";
 const ID_KIND_KEY = "uma-parent-id-kind";
 const ID_KIND_PARENT = "parent";
 const ID_KIND_PARTNER = "partner";
@@ -55,6 +56,22 @@ function readHideRaceSparksPreference() {
 function writeHideRaceSparksPreference(value) {
   try {
     localStorage.setItem(HIDE_RACE_SPARKS_KEY, value ? "1" : "0");
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function readMobileRowPreference() {
+  try {
+    return localStorage.getItem(MOBILE_ROW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeMobileRowPreference(value) {
+  try {
+    localStorage.setItem(MOBILE_ROW_KEY, value ? "1" : "0");
   } catch {
     // ignore quota / private mode
   }
@@ -407,7 +424,7 @@ function sparkGroups(prefix, inheritance) {
   ];
 }
 
-function PartnerCard({ payload, factorById, hideRaceSparks }) {
+function PartnerCard({ payload, factorById, hideRaceSparks, mobileRow }) {
   const inheritance = pickInheritance(payload);
   if (!inheritance) return null;
 
@@ -433,7 +450,11 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
   const hasTree = Boolean(hasLeft || hasRight);
 
   return (
-    <article className={`Parent-details${hasTree ? " has-tree" : ""}`}>
+    <article
+      className={`Parent-details${hasTree ? " has-tree" : ""}${
+        mobileRow ? " is-mobile-row" : ""
+      }`}
+    >
       <div className="Parent-details-bar">Practice Partner</div>
 
       <div className="Parent-tree">
@@ -506,6 +527,7 @@ export default function Parent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [hideRaceSparks, setHideRaceSparks] = useState(readHideRaceSparksPreference);
+  const [mobileRow, setMobileRow] = useState(readMobileRowPreference);
   const [factorById, setFactorById] = useState(() => {
     const items = readCachedFactors();
     return items
@@ -517,6 +539,12 @@ export default function Parent() {
     const next = event.target.checked;
     setHideRaceSparks(next);
     writeHideRaceSparksPreference(next);
+  }
+
+  function onMobileRowChange(event) {
+    const next = event.target.checked;
+    setMobileRow(next);
+    writeMobileRowPreference(next);
   }
 
   useEffect(() => {
@@ -666,14 +694,26 @@ export default function Parent() {
         </button>
       </form>
 
-      <label className="Parent-option">
-        <input
-          type="checkbox"
-          checked={hideRaceSparks}
-          onChange={onHideRaceSparksChange}
-        />
-        Hide race sparks
-      </label>
+      <div className="Parent-options">
+        <label className="Parent-option">
+          <input
+            type="checkbox"
+            checked={hideRaceSparks}
+            onChange={onHideRaceSparksChange}
+          />
+          Hide race sparks
+        </label>
+        {data ? (
+          <label className="Parent-option Parent-option--mobile-only">
+            <input
+              type="checkbox"
+              checked={mobileRow}
+              onChange={onMobileRowChange}
+            />
+            Horizontal layout
+          </label>
+        ) : null}
+      </div>
 
       {loading ? (
         <p className="Parent-status">{data ? `Updating ${id}…` : `Looking up ${id}…`}</p>
@@ -684,6 +724,7 @@ export default function Parent() {
           payload={data}
           factorById={factorById}
           hideRaceSparks={hideRaceSparks}
+          mobileRow={mobileRow}
         />
       ) : null}
     </div>
