@@ -520,12 +520,14 @@ html.parent-page {
 }
 
 .Parent-insp-tile.blue .Parent-insp-copy,
-.Parent-insp-tile.pink .Parent-insp-copy {
+.Parent-insp-tile.pink .Parent-insp-copy,
+.Parent-insp-tile.white .Parent-insp-copy {
   align-items: flex-start;
 }
 
 .Parent-insp-tile.blue .Parent-insp-name,
-.Parent-insp-tile.pink .Parent-insp-name {
+.Parent-insp-tile.pink .Parent-insp-name,
+.Parent-insp-tile.white .Parent-insp-name {
   text-align: left;
 }
 
