@@ -519,6 +519,16 @@ html.parent-page {
   text-align: center;
 }
 
+.Parent-insp-tile.blue .Parent-insp-copy,
+.Parent-insp-tile.pink .Parent-insp-copy {
+  align-items: flex-start;
+}
+
+.Parent-insp-tile.blue .Parent-insp-name,
+.Parent-insp-tile.pink .Parent-insp-name {
+  text-align: left;
+}
+
 .Parent-spark-stars {
   position: absolute;
   left: 50%;
