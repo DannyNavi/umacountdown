@@ -434,7 +434,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks }) {
 
   return (
     <article className={`Parent-details${hasTree ? " has-tree" : ""}`}>
-      <div className="Parent-details-bar">Practice Partner</div>
+      <div className="Parent-details-bar">Parent</div>
 
       <div className="Parent-tree">
         <div className="Parent-tree-main">
