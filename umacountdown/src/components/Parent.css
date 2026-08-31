@@ -235,13 +235,15 @@ html.parent-page {
 
 @media (min-width: 900px) {
   .Parent-Container {
-    max-width: 1680px;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+    max-width: none;
+    width: 100%;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
   }
 
   .Parent-details.has-tree {
     max-width: none;
+    width: 100%;
   }
 
   .Parent-details.has-tree .Parent-tree {
