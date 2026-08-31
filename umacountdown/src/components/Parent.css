@@ -242,14 +242,32 @@ html.parent-page {
 }
 
 @media (max-width: 899px) {
+  html.parent-page.has-parent-result header {
+    display: none;
+  }
+
+  .Parent-Container {
+    max-width: none;
+    width: 100%;
+    padding: 0.25rem 0.2rem 0.3rem;
+  }
+
+  .Parent-details,
+  .Parent-details.has-tree {
+    max-width: none;
+    width: 100%;
+    margin-bottom: 0;
+    border-radius: 10px;
+  }
+
   .Parent-details.has-tree.is-mobile-row .Parent-tree {
     display: grid;
     grid-auto-flow: column;
-    grid-template-columns: repeat(3, minmax(16rem, 78vw));
+    grid-template-columns: repeat(3, minmax(0, 94vw));
     align-items: start;
-    column-gap: 0.55rem;
+    column-gap: 0.35rem;
     overflow-x: auto;
-    padding: 0.25rem 0.4rem 0.5rem;
+    padding: 0.12rem 0.15rem 0.3rem;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -281,8 +299,7 @@ html.parent-page {
 @media (max-width: 899px) and (orientation: landscape),
   (max-width: 899px) and (min-aspect-ratio: 1.15 / 1) {
   .Parent-Container {
-    padding-left: 0.4rem;
-    padding-right: 0.4rem;
+    padding: 0.12rem 0.12rem 0.15rem;
   }
 
   .Parent-details.has-tree .Parent-tree,
@@ -291,9 +308,9 @@ html.parent-page {
     grid-auto-flow: row;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: start;
-    column-gap: 0.35rem;
+    column-gap: 0.22rem;
     overflow-x: hidden;
-    padding: 0.15rem 0.25rem 0.35rem;
+    padding: 0.08rem 0.1rem 0.2rem;
   }
 
   .Parent-details.has-tree .Parent-lineage,
@@ -532,7 +549,7 @@ html.parent-page {
   }
 
   .Parent-Container {
-    padding: 0.45rem 0.6rem 0.6rem;
+    padding: 0.25rem 0.2rem 0.25rem;
   }
 
   .Parent-Container h1 {
