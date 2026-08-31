@@ -519,15 +519,11 @@ html.parent-page {
 .Parent-spark-stars {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.02em;
   font-size: 0.62rem;
   line-height: 1;
   letter-spacing: 0;
-}
-
-.Parent-spark-stars span:nth-child(2) {
-  transform: translateY(0.22em);
 }
 
 .Parent-spark-stars .filled {
