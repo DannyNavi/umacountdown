@@ -5,7 +5,7 @@ import "../App.css"
 
 const PAGE_SIZE = 1;
 
-/** Pick the present banner by start date only (end dates in the schedule are unreliable). */
+/** Pick the latest banner that has already started (live, or most recent if all ended). */
 function findPresentPageIndex(banners) {
   if (!banners.length) return 0;
   const now = Math.floor(Date.now() / 1000);
@@ -129,8 +129,14 @@ export default function Countdown() {
         if (!acc[key]) {
           acc[key] = {
             start_date: gacha.start_date,
+            end_date: gacha.end_date,
             banners: [],
           };
+        } else if (
+          gacha.end_date &&
+          (!acc[key].end_date || gacha.end_date < acc[key].end_date)
+        ) {
+          acc[key].end_date = gacha.end_date;
         }
         acc[key].banners.push(gacha);
         return acc;
@@ -199,8 +205,8 @@ export default function Countdown() {
           {grouped.map((group) => (
               <div key={group.start_date}>
                 <CountdownTimer
-                  targetDate={group.start_date * 1000}
-                  eventName="Banner"
+                  startDate={group.start_date * 1000}
+                  endDate={group.end_date ? group.end_date * 1000 : undefined}
                 />
                 <div className="banner-grid">
                   {group.banners.map((banner) => (

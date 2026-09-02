@@ -1,41 +1,65 @@
 import { useEffect, useState } from "react";
 
-function CountdownTimer({ targetDate, eventName }) {
+const SENTINEL_END_MS = 2147483647 * 1000;
+
+function formatRemaining(diff) {
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+}
+
+function hasUsableEnd(endMs) {
+  return Number.isFinite(endMs) && endMs > 0 && endMs < SENTINEL_END_MS;
+}
+
+function CountdownTimer({ startDate, endDate }) {
   const [remaining, setRemaining] = useState("");
+  const [phaseLabel, setPhaseLabel] = useState("Banner starts:");
+  const [displayDate, setDisplayDate] = useState(startDate);
 
   useEffect(() => {
-    if (!targetDate) return;
+    if (!startDate) return;
 
     const updateTimer = () => {
-      const now = new Date();
-      const end = new Date(targetDate);
-      const diff = end - now;
+      const now = Date.now();
+      const startMs = new Date(startDate).getTime();
+      const endMs = endDate != null ? new Date(endDate).getTime() : NaN;
 
-      if (diff <= 0) {
-        setRemaining("The wait is over!");
+      if (now < startMs) {
+        setRemaining(formatRemaining(startMs - now));
+        setPhaseLabel("Banner starts:");
+        setDisplayDate(startMs);
         return;
       }
 
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
+      if (hasUsableEnd(endMs) && now < endMs) {
+        setRemaining(formatRemaining(endMs - now));
+        setPhaseLabel("Banner ends:");
+        setDisplayDate(endMs);
+        return;
+      }
 
-      setRemaining(
-        `${days}d ${hours}h ${minutes}m ${seconds}s`
-      );
+      setRemaining("This banner has ended");
+      setPhaseLabel(hasUsableEnd(endMs) ? "Banner ended:" : "Banner started:");
+      setDisplayDate(hasUsableEnd(endMs) ? endMs : startMs);
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [targetDate, eventName]);
+  }, [startDate, endDate]);
+
+  if (!startDate) return null;
 
   return (
     <div className="countdown">
       <h1>{remaining}</h1>
-      <p>Banner starts: {new Date(targetDate).toLocaleString()}</p>
+      <p>
+        {phaseLabel} {new Date(displayDate).toLocaleString()}
+      </p>
     </div>
   );
 }
