@@ -9,7 +9,7 @@
     "deploy": "npm run build && wrangler deploy",
     "predev": "node --input-type=module -e \"import fs from 'node:fs'; if (!fs.existsSync('.dev.vars') && fs.existsSync('.env')) fs.copyFileSync('.env', '.dev.vars');\"",
     "dev": "wrangler dev --local",
-    "test": "node --test src/partnerLookup.test.js",
+    "test": "node --test src/partnerLookup.test.js src/bannerDates.test.js",
     "start": "node index.js",
     "server": "nodemon src/index.js",
     "nodedev": "nodemon src/index.js"

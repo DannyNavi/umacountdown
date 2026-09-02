@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { globalBanners } from "./globalSchedule.js";
+import { applyBannerDates, applyBannerDatesToList, buildBannerDateMap } from "./bannerDates.js";
 import {
   applyManualBracket,
   createDefaultEvent,
@@ -43,13 +43,6 @@ app.get("/kv-test", async (c) => {
   return c.text(value ?? "missing");
 });
 
-function dateStringToUnixAt22UTC(dateStr) {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  return Math.floor(Date.UTC(year, month - 1, day, 22, 0, 0) / 1000);
-}
-
-let cachedJpWindows = [];
-
 async function getBannerList() {
   const now = Date.now();
 
@@ -80,49 +73,25 @@ async function getBannerList() {
   }
 }
 
-async function getJpWindows() {
-  if (cachedJpWindows.length > 0) return cachedJpWindows;
-
+async function getBannerDateMap() {
   try {
-    const response = await fetch("https://umapyoi.net/api/v1/gacha");
-    const data = await response.json();
-
-    data.sort((a, b) => a.start_date - b.start_date);
-
-    cachedJpWindows = [...new Set(data.map((b) => b.start_date))];
-
-    return cachedJpWindows;
+    const timeline = await readUmaResourceJson("banner_timeline");
+    return buildBannerDateMap(timeline);
   } catch (err) {
-    console.error(err);
-    return [];
+    console.error("Failed to load uma.moe banner timeline:", err);
+    return new Map();
   }
 }
 
 app.get("/api/v1/gacha", async (c) => {
   try {
-    let data = await getBannerList();
+    const data = await getBannerList();
+    const dateMap = await getBannerDateMap();
+    const globalizedBanners = applyBannerDatesToList(data, dateMap).sort(
+      (a, b) => a.start_date - b.start_date
+    );
 
-    data.sort((a, b) => a.start_date - b.start_date);
-
-    const uniqueWindows = [...new Set(data.map((b) => b.start_date))];
-
-    const globalizedBanners = data.map((banner) => {
-      const windowIndex = uniqueWindows.indexOf(banner.start_date);
-
-      const globalMatch = globalBanners.find((g) => g.page === windowIndex);
-
-      if (!globalMatch) return banner;
-
-      return {
-        ...banner,
-        start_date: dateStringToUnixAt22UTC(globalMatch.globalStart),
-        end_date:
-          banner.end_date === 2147483647
-            ? 2147483647
-            : dateStringToUnixAt22UTC(globalMatch.globalEnd),
-        is_global_mapped: true,
-      };
-    });
+    const uniqueWindows = [...new Set(globalizedBanners.map((b) => b.start_date))];
 
     const page = parseInt(c.req.query("page") ?? "0", 10);
     const limit = parseInt(c.req.query("limit") ?? "1", 10);
@@ -163,22 +132,9 @@ app.get("/api/v1/gacha/:id", async (c) => {
     }
 
     const banner = await response.json();
+    const dateMap = await getBannerDateMap();
 
-    const windows = await getJpWindows();
-
-    const windowIndex = windows.indexOf(banner.start_date);
-
-    const globalMatch = globalBanners.find((g) => g.page === windowIndex);
-
-    if (globalMatch) {
-      banner.start_date = dateStringToUnixAt22UTC(globalMatch.globalStart);
-
-      if (banner.end_date !== 2147483647) {
-        banner.end_date = dateStringToUnixAt22UTC(globalMatch.globalEnd);
-      }
-    }
-
-    return c.json(banner);
+    return c.json(applyBannerDates(banner, dateMap));
   } catch (err) {
     console.error(err);
 
@@ -208,7 +164,7 @@ app.get("/api/v4/circles", async (c) => {
 });
 
 const UMA_RESOURCE_ORIGIN = "https://uma.moe/resources/current";
-const UMA_RESOURCE_NAMES = new Set(["factors", "skills"]);
+const UMA_RESOURCE_NAMES = new Set(["factors", "skills", "banner_timeline"]);
 let umaResourceCache = new Map();
 
 async function readUmaResourceJson(name) {
