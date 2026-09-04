@@ -120,6 +120,18 @@
   border-bottom: none;
 }
 
+.Club-table tfoot th {
+  color: var(--text-h);
+  font-weight: 700;
+  text-align: left;
+  background: #23242c;
+  border-bottom: none;
+}
+
+.Club-table tfoot th.Club-num {
+  text-align: right;
+}
+
 .Club-rank,
 .Club-num {
   text-align: right;
