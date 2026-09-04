@@ -140,9 +140,6 @@ export default function Club() {
     <div className="Club-page">
       <div className="Club-wrap">
         <h1>Exile All Stars</h1>
-        <p className="Club-lead">
-          Top 30 monthly fan earners across the four clubs.
-        </p>
 
         {clubs.length ? (
           <ul className="Club-list">
