@@ -10,6 +10,7 @@ import Ozy from "./components/Ozy";
 import Shaz from "./components/Shaz";
 import Club from "./components/Club";
 import Parent from "./components/Parent";
+import VisitTracker from "./components/VisitTracker";
 
 export default function App() {
 
@@ -17,6 +18,7 @@ export default function App() {
     <div>
       <BrowserRouter>
       <header><TopBar/></header>
+        <VisitTracker />
         <Routes>
           <Route path="/" element={<HomePage/>}/>
           <Route path="countdown" element={<BannerCountdown/>}/>

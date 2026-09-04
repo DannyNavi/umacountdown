@@ -21,6 +21,7 @@ import {
   parsePracticeLookup,
   practiceCacheTtlSeconds,
 } from "./partnerLookup.js";
+import { getVisitStats, recordVisit } from "./visits.js";
 export { OshiWarsStore } from "./oshiWars/OshiWarsStore.js";
 
 const app = new Hono();
@@ -378,6 +379,23 @@ app.post("/api/admin/login", async (c) => {
     return c.json({ success: true, token: expectedToken });
   }
   return c.json({ error: "Invalid admin username or password" }, 401);
+});
+
+/** Aggregate page views — no cookies, IPs, or visitor IDs stored. */
+app.post("/api/visits", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const stats = await recordVisit(c.env, body?.path);
+  if (!stats) {
+    return c.json({ error: "Unsupported path" }, 400);
+  }
+  return c.json({ ok: true });
+});
+
+app.get("/api/visits", async (c) => {
+  const denied = requireOshiAdmin(c);
+  if (denied) return denied;
+  const stats = await getVisitStats(c.env);
+  return c.json(stats);
 });
 
 app.post("/api/events/:id/start-qualifying", async (c) => {
