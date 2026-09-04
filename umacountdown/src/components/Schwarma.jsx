@@ -7,15 +7,7 @@ import "./Schwarma.css"
 import creek from "../images/creek2.png"
 import ufcreek from "../images/supergeek.png"
 
-import gluema from "../images/STOP MAKING GLUEMAS AND START RETAINING C6.pdf?url";
-
-let pdf
-let currentPage = 1
-
-async function loadPdf (url) {
-    pdf = await pdfjsLib
-    
-}
+const GLUEMA_PDF = "/STOP MAKING GLUEMAS AND START RETAINING C6.pdf";
 
 export default function Schwarma(){
     const [displayTierlist, setDisplayTierlist] = useState(false)
@@ -40,7 +32,7 @@ export default function Schwarma(){
             <button onClick={()=> setOpenPDF(!openPDF)}>Open Guide PDF</button>
 
             {openPDF && <object
-                data={`${gluema}#toolbar=0`}
+                data={`${GLUEMA_PDF}#toolbar=0`}
                 type="application/pdf"
                 width="100%"
                 height="600"
