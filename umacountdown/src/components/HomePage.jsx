@@ -76,7 +76,7 @@ export default function HomePage(){
                 </div>
 
                 <div className="LinkCard">
-                    <h2>Club Fans</h2>
+                    <h2>Exile All Stars</h2>
                     <Link to="/club">
                         <img src="https://media.gametora.com/umamusume/characters/profile/1024.png"/>
                     </Link>
