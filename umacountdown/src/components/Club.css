@@ -28,6 +28,28 @@
   color: var(--text);
 }
 
+.Club-combined {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--code-bg);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+}
+
+.Club-combined strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-h);
+}
+
+.Club-combined p {
+  margin: 0 0 0.35rem;
+}
+
+.Club-combined p:last-child {
+  margin-bottom: 0;
+}
+
 .Club-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

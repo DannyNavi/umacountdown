@@ -108,6 +108,7 @@ function formatFans(value) {
 export default function Club() {
   const [rows, setRows] = useState([]);
   const [clubs, setClubs] = useState([]);
+  const [combined, setCombined] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -165,9 +166,27 @@ export default function Club() {
           };
         });
 
+        const monthlyFans = responses.reduce(
+          (sum, data) => sum + (Number(data.circle?.monthly_point) || 0),
+          0
+        );
+        const liveFans = responses.reduce(
+          (sum, data) => sum + (Number(data.circle?.live_points) || 0),
+          0
+        );
+        const bestClub = responses.reduce((best, data) => {
+          const rank = Number(data.circle?.monthly_rank);
+          if (!Number.isFinite(rank)) return best;
+          if (!best || rank < best.rank) {
+            return { rank, name: data.circle?.name || "Club" };
+          }
+          return best;
+        }, null);
+
         if (!cancelled) {
           setClubs(clubSummaries);
           setRows(top);
+          setCombined({ monthlyFans, liveFans, bestClub });
           setError("");
         }
       } catch (err) {
@@ -192,6 +211,22 @@ export default function Club() {
         <p className="Club-lead">
           Top 30 monthly fan earners across the four clubs.
         </p>
+
+        {combined ? (
+          <div className="Club-combined">
+            <strong>If Exile All Stars were one club</strong>
+            <p>
+              Combined monthly fans: <b>{formatFans(combined.monthlyFans)}</b>
+              {" · "}
+              Live fans: <b>{formatFans(combined.liveFans)}</b>
+            </p>
+            <p>
+              {combined.bestClub
+                ? `That total is higher than ${combined.bestClub.name} (#${combined.bestClub.rank}), so the combined club would rank better than #${combined.bestClub.rank}. uma.moe does not publish a full club ranking list, so an exact number is not available.`
+                : "Combined monthly fans from all four clubs."}
+            </p>
+          </div>
+        ) : null}
 
         {clubs.length ? (
           <ul className="Club-list">
