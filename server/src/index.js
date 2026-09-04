@@ -148,11 +148,21 @@ app.get("/api/v1/gacha/:id", async (c) => {
 });
 
 app.get("/api/v4/circles", async (c) => {
-  const apiKey = c.env.key;
+  const apiKey = getUmaApiKey(c.env);
   const circleId = c.req.query("circle_id");
 
+  if (!apiKey) {
+    return c.json(
+      { error: "uma.moe API key not configured. Set key in server/.env or server/.dev.vars" },
+      503
+    );
+  }
+  if (!circleId) {
+    return c.json({ error: "circle_id is required" }, 400);
+  }
+
   const response = await fetch(
-    `https://uma.moe/api/v4/circles?circle_id=${circleId}`,
+    `https://uma.moe/api/v4/circles?circle_id=${encodeURIComponent(circleId)}`,
     {
       headers: {
         "X-API-Key": apiKey,
@@ -160,7 +170,8 @@ app.get("/api/v4/circles", async (c) => {
     }
   );
 
-  return c.json(await response.json());
+  const body = await response.json().catch(() => ({}));
+  return c.json(body, response.status);
 });
 
 const UMA_RESOURCE_ORIGIN = "https://uma.moe/resources/current";

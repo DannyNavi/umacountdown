@@ -1,0 +1,133 @@
+.Club-page {
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --bg: #16171d;
+  --border: #2e303a;
+  --code-bg: #1f2028;
+  --accent: #c084fc;
+  color: var(--text);
+  background: var(--bg);
+  min-height: calc(100vh - 80px);
+  text-align: left;
+}
+
+.Club-wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.Club-wrap h1 {
+  margin: 0 0 0.35rem;
+  color: var(--text-h);
+  padding-top: 0;
+}
+
+.Club-lead {
+  margin: 0 0 1rem;
+  color: var(--text);
+}
+
+.Club-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.55rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.Club-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.Club-list strong {
+  color: var(--text-h);
+}
+
+.Club-list span {
+  font-size: 0.85rem;
+}
+
+.Club-status {
+  margin: 0 0 1rem;
+}
+
+.Club-status--error {
+  color: #ef5350;
+}
+
+.Club-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--code-bg);
+}
+
+.Club-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.Club-table th,
+.Club-table td {
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.Club-table th {
+  color: var(--text-h);
+  font-weight: 700;
+  text-align: left;
+  background: #23242c;
+}
+
+.Club-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.Club-rank,
+.Club-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.Club-table th.Club-rank,
+.Club-table th.Club-num {
+  text-align: right;
+}
+
+.Club-top--1 td {
+  color: #f3c317;
+}
+
+.Club-top--2 td {
+  color: #d7dce5;
+}
+
+.Club-top--3 td {
+  color: #d4a574;
+}
+
+@media (max-width: 640px) {
+  .Club-wrap {
+    padding: 0.7rem 0.55rem 1.5rem;
+  }
+
+  .Club-table {
+    font-size: 0.82rem;
+  }
+
+  .Club-table th,
+  .Club-table td {
+    padding: 0.42rem 0.45rem;
+  }
+}
