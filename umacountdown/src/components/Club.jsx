@@ -1,65 +1,194 @@
 import { useEffect, useState } from "react";
+import "./Club.css";
+
+const CIRCLE_IDS = [619284325, 676001972, 702265397, 868091297];
+
+function fanStats(rawFans) {
+  const fans = Array.isArray(rawFans)
+    ? rawFans.filter((n) => typeof n === "number")
+    : [];
+  const lastPositiveIdx = fans.reduce((idx, n, i) => (n > 0 ? i : idx), -1);
+  if (lastPositiveIdx < 0) {
+    return { monthlyGain: 0, latestFans: 0 };
+  }
+
+  const trimmed = fans.slice(0, lastPositiveIdx + 1);
+  let lastNegativeIdx = -1;
+  let negativeCount = 0;
+  for (let i = 0; i < trimmed.length; i += 1) {
+    if (trimmed[i] < 0) {
+      lastNegativeIdx = i;
+      negativeCount += 1;
+    }
+  }
+
+  let dailyFans;
+  if (lastNegativeIdx < 0) {
+    const firstPositiveIdx = trimmed.findIndex((n) => n > 0);
+    const start = firstPositiveIdx > 0 ? firstPositiveIdx : 0;
+    let prev = trimmed[start];
+    dailyFans = trimmed.slice(start).map((n) => {
+      const v = n > 0 ? n : prev;
+      prev = v;
+      return v;
+    });
+  } else if (negativeCount === 1 && lastNegativeIdx === 0) {
+    const baseline = Math.abs(trimmed[0]);
+    let prev = baseline;
+    dailyFans = [
+      baseline,
+      ...trimmed.slice(1).map((n) => {
+        const v = n > 0 ? n : prev;
+        prev = v;
+        return v;
+      }),
+    ];
+  } else {
+    const baseline = Math.abs(trimmed[lastNegativeIdx]);
+    let prev = baseline;
+    dailyFans = [
+      baseline,
+      ...trimmed.slice(lastNegativeIdx + 1).map((n) => {
+        const v = n > 0 ? n : prev;
+        prev = v;
+        return v;
+      }),
+    ];
+  }
+
+  if (!dailyFans.length) return { monthlyGain: 0, latestFans: 0 };
+  const firstFans = dailyFans[0] ?? 0;
+  const latestFans = dailyFans[dailyFans.length - 1] ?? firstFans;
+  return { monthlyGain: latestFans - firstFans, latestFans };
+}
+
+function formatFans(value) {
+  return Math.max(0, Math.round(Number(value) || 0)).toLocaleString();
+}
 
 export default function Club() {
-  const [Ids, setAllIds] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const circleIds = [619284325, 676001972, 702265397, 868091297];
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchAllCircles() {
+    let cancelled = false;
+
+    async function load() {
       try {
         const responses = await Promise.all(
-          circleIds.map((id) =>
-            fetch(`/api/v4/circles?circle_id=${id}`)
-              .then((res) => res.json())
+          CIRCLE_IDS.map((id) =>
+            fetch(`/api/v4/circles?circle_id=${id}`).then(async (res) => {
+              const body = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                throw new Error(body.error || `Circle ${id} failed (${res.status})`);
+              }
+              return body;
+            })
           )
         );
 
-        const memberIds = responses.flatMap((data) =>
-          data.members.map((member) => member.viewer_id)
-        );
+        const clubSummaries = responses.map((data) => ({
+          id: data.circle?.circle_id,
+          name: data.circle?.name || "Club",
+          members: data.circle?.member_count ?? data.members?.length ?? 0,
+        }));
 
-        console.log(memberIds);
+        const seen = new Set();
+        const members = [];
+        for (const data of responses) {
+          const clubName = data.circle?.name || "Club";
+          for (const member of data.members || []) {
+            const viewerId = member.viewer_id;
+            if (viewerId == null || seen.has(viewerId)) continue;
+            seen.add(viewerId);
+            const stats = fanStats(member.daily_fans);
+            members.push({
+              viewerId,
+              name: member.trainer_name || `Trainer ${viewerId}`,
+              clubName,
+              monthlyGain: stats.monthlyGain,
+              latestFans: stats.latestFans,
+            });
+          }
+        }
 
-        // Create txt file
-        const blob = new Blob(
-          [memberIds.join("\n")],
-          { type: "text/plain" }
-        );
+        members.sort((a, b) => b.monthlyGain - a.monthlyGain || b.latestFans - a.latestFans);
 
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "memberIds.txt";
-        link.click();
-
-        URL.revokeObjectURL(url);
-
-        setAllIds(responses);
-
-      } catch (error) {
-        console.error("Failed to fetch circles:", error);
+        if (!cancelled) {
+          setClubs(clubSummaries);
+          setRows(members.slice(0, 30));
+          setError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Failed to load club fans");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    fetchAllCircles();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (loading)
-    return <p>Loading</p>;
-
   return (
-    <div>
-      {Ids.map((data) => (
-        <div key={data.circle.circle_id}>
-          <h1>{data.circle.name}</h1>
-          <p>Members: {data.circle.member_count}</p>
-        </div>
-      ))}
+    <div className="Club-page">
+      <div className="Club-wrap">
+        <h1>Exile All Stars</h1>
+        <p className="Club-lead">
+          Top 30 monthly fan earners across the four clubs.
+        </p>
+
+        {clubs.length ? (
+          <ul className="Club-list">
+            {clubs.map((club) => (
+              <li key={club.id}>
+                <strong>{club.name}</strong>
+                <span>{club.members} members</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {loading ? <p className="Club-status">Loading club fans…</p> : null}
+        {error ? <p className="Club-status Club-status--error">{error}</p> : null}
+
+        {!loading && !error && rows.length === 0 ? (
+          <p className="Club-status">No member fan data yet.</p>
+        ) : null}
+
+        {rows.length ? (
+          <div className="Club-table-wrap">
+            <table className="Club-table">
+              <thead>
+                <tr>
+                  <th className="Club-rank">#</th>
+                  <th>Trainer</th>
+                  <th>Club</th>
+                  <th className="Club-num">Monthly fans</th>
+                  <th className="Club-num">Total fans</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => (
+                  <tr key={row.viewerId} className={index < 3 ? `Club-top Club-top--${index + 1}` : undefined}>
+                    <td className="Club-rank">{index + 1}</td>
+                    <td>{row.name}</td>
+                    <td>{row.clubName}</td>
+                    <td className="Club-num">{formatFans(row.monthlyGain)}</td>
+                    <td className="Club-num">{formatFans(row.latestFans)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
