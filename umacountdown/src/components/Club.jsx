@@ -207,14 +207,8 @@ export default function Club() {
           };
         });
 
-        const monthlyFans = responses.reduce(
-          (sum, data) => sum + (Number(data.circle?.monthly_point) || 0),
-          0
-        );
-        const liveFans = responses.reduce(
-          (sum, data) => sum + (Number(data.circle?.live_points) || 0),
-          0
-        );
+        const monthlyFans = top.reduce((sum, row) => sum + (Number(row.monthlyGain) || 0), 0);
+        const totalFans = top.reduce((sum, row) => sum + (Number(row.latestFans) || 0), 0);
         const bestClub = responses.reduce((best, data) => {
           const rank = Number(data.circle?.monthly_rank);
           if (!Number.isFinite(rank)) return best;
@@ -228,7 +222,7 @@ export default function Club() {
         if (!cancelled) {
           setClubs(clubSummaries);
           setRows(top);
-          setCombined({ monthlyFans, liveFans, bestClub, estimated });
+          setCombined({ monthlyFans, totalFans, count: top.length, bestClub, estimated });
           setError("");
         }
       } catch (err) {
@@ -256,11 +250,11 @@ export default function Club() {
 
         {combined ? (
           <div className="Club-combined">
-            <strong>If Exile All Stars were one club</strong>
+            <strong>If the top {combined.count} were one club</strong>
             <p>
-              Combined monthly fans: <b>{formatFans(combined.monthlyFans)}</b>
+              Monthly fans: <b>{formatFans(combined.monthlyFans)}</b>
               {" · "}
-              Live fans: <b>{formatFans(combined.liveFans)}</b>
+              Total fans: <b>{formatFans(combined.totalFans)}</b>
             </p>
             <p>
               {combined.estimated?.complete
@@ -269,7 +263,7 @@ export default function Club() {
                   ? `Estimated monthly rank: at least #${combined.estimated.rank} (compared the top ${combined.estimated.compared} clubs; all still have more fans).`
                   : combined.bestClub
                     ? `That total is higher than ${combined.bestClub.name} (#${combined.bestClub.rank}), so the combined club would rank better than #${combined.bestClub.rank}.`
-                    : "Combined monthly fans from all four clubs."}
+                    : "Sum of the top monthly earners across the four clubs."}
             </p>
           </div>
         ) : null}
@@ -317,6 +311,15 @@ export default function Club() {
                   </tr>
                 ))}
               </tbody>
+              {combined ? (
+                <tfoot>
+                  <tr>
+                    <th className="Club-rank" colSpan={3}>Sum</th>
+                    <th className="Club-num">{formatFans(combined.monthlyFans)}</th>
+                    <th className="Club-num">{formatFans(combined.totalFans)}</th>
+                  </tr>
+                </tfoot>
+              ) : null}
             </table>
           </div>
         ) : null}
