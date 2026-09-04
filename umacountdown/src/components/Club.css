@@ -50,6 +50,10 @@
   margin-bottom: 0;
 }
 
+.Club-combined b {
+  color: var(--text-h);
+}
+
 .Club-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

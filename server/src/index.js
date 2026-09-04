@@ -148,6 +148,40 @@ app.get("/api/v1/gacha/:id", async (c) => {
   }
 });
 
+const CIRCLE_LIST_PARAMS = ["page", "limit", "sort_by", "sort_dir", "query", "name"];
+
+app.get("/api/v4/circles/list", async (c) => {
+  const apiKey = getUmaApiKey(c.env);
+  if (!apiKey) {
+    return c.json(
+      { error: "uma.moe API key not configured. Set key in server/.env or server/.dev.vars" },
+      503
+    );
+  }
+
+  const params = new URLSearchParams();
+  for (const key of CIRCLE_LIST_PARAMS) {
+    const value = c.req.query(key);
+    if (value != null && value !== "") params.set(key, value);
+  }
+  if (!params.has("page")) params.set("page", "0");
+  if (!params.has("limit")) params.set("limit", "100");
+  if (!params.has("sort_by")) params.set("sort_by", "rank");
+  if (!params.has("sort_dir")) params.set("sort_dir", "asc");
+
+  const response = await fetch(
+    `https://uma.moe/api/v4/circles/list?${params}`,
+    {
+      headers: {
+        "X-API-Key": apiKey,
+      },
+    }
+  );
+
+  const body = await response.json().catch(() => ({}));
+  return c.json(body, response.status);
+});
+
 app.get("/api/v4/circles", async (c) => {
   const apiKey = getUmaApiKey(c.env);
   const circleId = c.req.query("circle_id");

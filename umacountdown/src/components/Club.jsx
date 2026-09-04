@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { circleListItems, estimateCombinedRank } from "../clubRank";
 import "./Club.css";
 
 const CIRCLE_IDS = [619284325, 676001972, 702265397, 868091297];
@@ -105,6 +106,46 @@ function formatFans(value) {
   return Math.max(0, Math.round(Number(value) || 0)).toLocaleString();
 }
 
+async function fetchCircleListPage(page) {
+  const res = await fetch(
+    `/api/v4/circles/list?page=${page}&limit=100&sort_by=rank&sort_dir=asc`
+  );
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || `Circle list failed (${res.status})`);
+  }
+  return circleListItems(body);
+}
+
+function rankNeighbors(estimated) {
+  if (estimated.above && estimated.below) {
+    return `, between ${estimated.above.name} and ${estimated.below.name}`;
+  }
+  if (estimated.below) {
+    return `, ahead of ${estimated.below.name}`;
+  }
+  if (estimated.above) {
+    return `, behind ${estimated.above.name}`;
+  }
+  return "";
+}
+
+async function loadCombinedRank(monthlyFans) {
+  const ladder = [];
+  try {
+    for (let page = 0; page < 5; page += 1) {
+      const items = await fetchCircleListPage(page);
+      if (!items.length) break;
+      ladder.push(...items);
+      const lastPoints = Number(items[items.length - 1]?.monthly_point) || 0;
+      if (lastPoints <= monthlyFans) break;
+    }
+    return estimateCombinedRank(monthlyFans, ladder, CIRCLE_IDS);
+  } catch {
+    return null;
+  }
+}
+
 export default function Club() {
   const [rows, setRows] = useState([]);
   const [clubs, setClubs] = useState([]);
@@ -182,11 +223,12 @@ export default function Club() {
           }
           return best;
         }, null);
+        const estimated = await loadCombinedRank(monthlyFans);
 
         if (!cancelled) {
           setClubs(clubSummaries);
           setRows(top);
-          setCombined({ monthlyFans, liveFans, bestClub });
+          setCombined({ monthlyFans, liveFans, bestClub, estimated });
           setError("");
         }
       } catch (err) {
@@ -221,9 +263,13 @@ export default function Club() {
               Live fans: <b>{formatFans(combined.liveFans)}</b>
             </p>
             <p>
-              {combined.bestClub
-                ? `That total is higher than ${combined.bestClub.name} (#${combined.bestClub.rank}), so the combined club would rank better than #${combined.bestClub.rank}. uma.moe does not publish a full club ranking list, so an exact number is not available.`
-                : "Combined monthly fans from all four clubs."}
+              {combined.estimated?.complete
+                ? `Estimated monthly rank: #${combined.estimated.rank}${rankNeighbors(combined.estimated)}.`
+                : combined.estimated
+                  ? `Estimated monthly rank: at least #${combined.estimated.rank} (compared the top ${combined.estimated.compared} clubs; all still have more fans).`
+                  : combined.bestClub
+                    ? `That total is higher than ${combined.bestClub.name} (#${combined.bestClub.rank}), so the combined club would rank better than #${combined.bestClub.rank}.`
+                    : "Combined monthly fans from all four clubs."}
             </p>
           </div>
         ) : null}
