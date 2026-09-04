@@ -3,6 +3,45 @@ import "./Club.css";
 
 const CIRCLE_IDS = [619284325, 676001972, 702265397, 868091297];
 
+const SAME_PERSON_ALIASES = [
+  ["AntWolf", "LiliWeiss", "Scarlet Shadow", "Red Hood"],
+];
+
+function normalizeTrainerName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function betterEarner(a, b) {
+  if (a.monthlyGain !== b.monthlyGain) return a.monthlyGain > b.monthlyGain;
+  return a.latestFans > b.latestFans;
+}
+
+function collapseSamePeople(members) {
+  const groupByName = new Map();
+  SAME_PERSON_ALIASES.forEach((names, groupId) => {
+    for (const name of names) {
+      groupByName.set(normalizeTrainerName(name), groupId);
+    }
+  });
+
+  const bestByGroup = new Map();
+  const unique = [];
+  for (const member of members) {
+    const groupId = groupByName.get(normalizeTrainerName(member.name));
+    if (groupId == null) {
+      unique.push(member);
+      continue;
+    }
+    const current = bestByGroup.get(groupId);
+    if (!current || betterEarner(member, current)) {
+      bestByGroup.set(groupId, member);
+    }
+  }
+  return [...unique, ...bestByGroup.values()];
+}
+
 function fanStats(rawFans) {
   const fans = Array.isArray(rawFans)
     ? rawFans.filter((n) => typeof n === "number")
@@ -89,12 +128,6 @@ export default function Club() {
           )
         );
 
-        const clubSummaries = responses.map((data) => ({
-          id: data.circle?.circle_id,
-          name: data.circle?.name || "Club",
-          members: data.circle?.member_count ?? data.members?.length ?? 0,
-        }));
-
         const seen = new Set();
         const members = [];
         for (const data of responses) {
@@ -114,11 +147,27 @@ export default function Club() {
           }
         }
 
-        members.sort((a, b) => b.monthlyGain - a.monthlyGain || b.latestFans - a.latestFans);
+        const ranked = collapseSamePeople(members).sort(
+          (a, b) => b.monthlyGain - a.monthlyGain || b.latestFans - a.latestFans
+        );
+        const top = ranked.slice(0, 30);
+        const repsByClub = new Map();
+        for (const row of top) {
+          repsByClub.set(row.clubName, (repsByClub.get(row.clubName) || 0) + 1);
+        }
+
+        const clubSummaries = responses.map((data) => {
+          const name = data.circle?.name || "Club";
+          return {
+            id: data.circle?.circle_id,
+            name,
+            representatives: repsByClub.get(name) || 0,
+          };
+        });
 
         if (!cancelled) {
           setClubs(clubSummaries);
-          setRows(members.slice(0, 30));
+          setRows(top);
           setError("");
         }
       } catch (err) {
@@ -149,7 +198,9 @@ export default function Club() {
             {clubs.map((club) => (
               <li key={club.id}>
                 <strong>{club.name}</strong>
-                <span>{club.members} members</span>
+                <span>
+                  {club.representatives} representative{club.representatives === 1 ? "" : "s"}
+                </span>
               </li>
             ))}
           </ul>
