@@ -1,7 +1,47 @@
 import { useEffect, useState } from "react";
+import { circleListItems, estimateCombinedRank } from "../clubRank";
 import "./Club.css";
 
 const CIRCLE_IDS = [619284325, 676001972, 702265397, 868091297];
+
+const SAME_PERSON_ALIASES = [
+  ["AntWolf", "LiliWeiss", "Scarlet Shadow", "Red Hood"],
+];
+
+function normalizeTrainerName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function betterEarner(a, b) {
+  if (a.monthlyGain !== b.monthlyGain) return a.monthlyGain > b.monthlyGain;
+  return a.latestFans > b.latestFans;
+}
+
+function collapseSamePeople(members) {
+  const groupByName = new Map();
+  SAME_PERSON_ALIASES.forEach((names, groupId) => {
+    for (const name of names) {
+      groupByName.set(normalizeTrainerName(name), groupId);
+    }
+  });
+
+  const bestByGroup = new Map();
+  const unique = [];
+  for (const member of members) {
+    const groupId = groupByName.get(normalizeTrainerName(member.name));
+    if (groupId == null) {
+      unique.push(member);
+      continue;
+    }
+    const current = bestByGroup.get(groupId);
+    if (!current || betterEarner(member, current)) {
+      bestByGroup.set(groupId, member);
+    }
+  }
+  return [...unique, ...bestByGroup.values()];
+}
 
 function fanStats(rawFans) {
   const fans = Array.isArray(rawFans)
@@ -66,9 +106,50 @@ function formatFans(value) {
   return Math.max(0, Math.round(Number(value) || 0)).toLocaleString();
 }
 
+async function fetchCircleListPage(page) {
+  const res = await fetch(
+    `/api/v4/circles/list?page=${page}&limit=100&sort_by=rank&sort_dir=asc`
+  );
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || `Circle list failed (${res.status})`);
+  }
+  return circleListItems(body);
+}
+
+function rankNeighbors(estimated) {
+  if (estimated.above && estimated.below) {
+    return `, between ${estimated.above.name} and ${estimated.below.name}`;
+  }
+  if (estimated.below) {
+    return `, ahead of ${estimated.below.name}`;
+  }
+  if (estimated.above) {
+    return `, behind ${estimated.above.name}`;
+  }
+  return "";
+}
+
+async function loadCombinedRank(monthlyFans) {
+  const ladder = [];
+  try {
+    for (let page = 0; page < 5; page += 1) {
+      const items = await fetchCircleListPage(page);
+      if (!items.length) break;
+      ladder.push(...items);
+      const lastPoints = Number(items[items.length - 1]?.monthly_point) || 0;
+      if (lastPoints <= monthlyFans) break;
+    }
+    return estimateCombinedRank(monthlyFans, ladder, CIRCLE_IDS);
+  } catch {
+    return null;
+  }
+}
+
 export default function Club() {
   const [rows, setRows] = useState([]);
   const [clubs, setClubs] = useState([]);
+  const [combined, setCombined] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -89,12 +170,6 @@ export default function Club() {
           )
         );
 
-        const clubSummaries = responses.map((data) => ({
-          id: data.circle?.circle_id,
-          name: data.circle?.name || "Club",
-          members: data.circle?.member_count ?? data.members?.length ?? 0,
-        }));
-
         const seen = new Set();
         const members = [];
         for (const data of responses) {
@@ -114,11 +189,46 @@ export default function Club() {
           }
         }
 
-        members.sort((a, b) => b.monthlyGain - a.monthlyGain || b.latestFans - a.latestFans);
+        const ranked = collapseSamePeople(members).sort(
+          (a, b) => b.monthlyGain - a.monthlyGain || b.latestFans - a.latestFans
+        );
+        const top = ranked.slice(0, 30);
+        const repsByClub = new Map();
+        for (const row of top) {
+          repsByClub.set(row.clubName, (repsByClub.get(row.clubName) || 0) + 1);
+        }
+
+        const clubSummaries = responses.map((data) => {
+          const name = data.circle?.name || "Club";
+          return {
+            id: data.circle?.circle_id,
+            name,
+            representatives: repsByClub.get(name) || 0,
+          };
+        });
+
+        const monthlyFans = responses.reduce(
+          (sum, data) => sum + (Number(data.circle?.monthly_point) || 0),
+          0
+        );
+        const liveFans = responses.reduce(
+          (sum, data) => sum + (Number(data.circle?.live_points) || 0),
+          0
+        );
+        const bestClub = responses.reduce((best, data) => {
+          const rank = Number(data.circle?.monthly_rank);
+          if (!Number.isFinite(rank)) return best;
+          if (!best || rank < best.rank) {
+            return { rank, name: data.circle?.name || "Club" };
+          }
+          return best;
+        }, null);
+        const estimated = await loadCombinedRank(monthlyFans);
 
         if (!cancelled) {
           setClubs(clubSummaries);
-          setRows(members.slice(0, 30));
+          setRows(top);
+          setCombined({ monthlyFans, liveFans, bestClub, estimated });
           setError("");
         }
       } catch (err) {
@@ -141,12 +251,34 @@ export default function Club() {
       <div className="Club-wrap">
         <h1>Exile All Stars</h1>
 
+        {combined ? (
+          <div className="Club-combined">
+            <strong>If Exile All Stars were one club</strong>
+            <p>
+              Combined monthly fans: <b>{formatFans(combined.monthlyFans)}</b>
+              {" · "}
+              Live fans: <b>{formatFans(combined.liveFans)}</b>
+            </p>
+            <p>
+              {combined.estimated?.complete
+                ? `Estimated monthly rank: #${combined.estimated.rank}${rankNeighbors(combined.estimated)}.`
+                : combined.estimated
+                  ? `Estimated monthly rank: at least #${combined.estimated.rank} (compared the top ${combined.estimated.compared} clubs; all still have more fans).`
+                  : combined.bestClub
+                    ? `That total is higher than ${combined.bestClub.name} (#${combined.bestClub.rank}), so the combined club would rank better than #${combined.bestClub.rank}.`
+                    : "Combined monthly fans from all four clubs."}
+            </p>
+          </div>
+        ) : null}
+
         {clubs.length ? (
           <ul className="Club-list">
             {clubs.map((club) => (
               <li key={club.id}>
                 <strong>{club.name}</strong>
-                <span>{club.members} members</span>
+                <span>
+                  {club.representatives} representative{club.representatives === 1 ? "" : "s"}
+                </span>
               </li>
             ))}
           </ul>
