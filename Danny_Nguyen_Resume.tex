@@ -1,0 +1,172 @@
+%-------------------------
+% Resume in Latex
+% Author : Danny Nguyen
+% Tuned for full-stack engineering roles
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Ensure that generate pdf is machine readable/ATS parsable
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{%
+  \item\small{%
+    {#1 \vspace{-2pt}}%
+  }%
+}
+
+\newcommand{\resumeSubheading}[4]{%
+  \vspace{-2pt}\item%
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}%
+      \textbf{#1} & #2 \\%
+      \textit{\small#3} & \textit{\small #4} \\%
+    \end{tabular*}\vspace{-7pt}%
+}
+
+\newcommand{\resumeSubSubheading}[2]{%
+    \item%
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}%
+      \textit{\small#1} & \textit{\small #2} \\%
+    \end{tabular*}\vspace{-7pt}%
+}
+
+\newcommand{\resumeProjectHeading}[2]{%
+    \item%
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}%
+      \small#1 & #2 \\%
+    \end{tabular*}\vspace{-7pt}%
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+
+% CUSTOMIZED LIST PADDING HERE:
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in, itemsep=4pt, topsep=4pt, parsep=0pt]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-2pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Huge \scshape Danny Nguyen} \\ \vspace{1pt}
+    \small 971-401-6281 $|$ \href{mailto:nguyen.danny142@gmail.com}{\underline{nguyen.danny142@gmail.com}} $|$
+    \href{https://www.linkedin.com/in/danny-t-nguyen/}{\underline{linkedin.com/in/danny-t-nguyen}} $|$
+    \href{https://github.com/DannyNavi/}{\underline{github.com/DannyNavi}}
+\end{center}
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Incluvie}{Remote}
+      {Web Developer Intern}{Jan. 2026 -- May 2026}
+      \resumeItemListStart
+        \resumeItem{Shipped site updates on a 3-person remote team for a movie review portal, including new content tags and a rotating sponsor image feature}
+        \resumeItem{Fixed and refreshed 8 pages: removed outdated content and made layouts mobile-responsive}
+        \resumeItem{Collaborated in Git-based code review to ship UI changes safely to production}
+      \resumeItemListEnd
+    \resumeSubheading
+      {Oregon State University}{Corvallis, OR}
+      {Undergraduate Learning Assistant}{Dec. 2024 -- Jun. 2025}
+      \resumeItemListStart
+        \resumeItem{Taught weekly labs for an introductory Python course serving $\sim$80 students}
+        \resumeItem{Mentored students on assignments and debugging; students I worked with improved assignment grades by 10--30\%}
+        \resumeItem{Met weekly with instructional staff to align lab content and improve how material was taught}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+      {\textbf{Uma Countdown --- Oshi Wars} $|$ \emph{React, Vite, Tailwind, Hono, Cloudflare Workers, Durable Objects, KV} \\
+      \href{https://umacountdown.nguyen-danny142.workers.dev/}{\underline{https://umacountdown.nguyen-danny142.workers.dev/}}}{}
+      \resumeItemListStart
+        \resumeItem{Designed and shipped a full-stack community tournament platform used by 40 participants, with qualifying ballots, seeded brackets, live voting, and admin controls}
+        \resumeItem{Built a React SPA on a Hono API running on Cloudflare Workers, using Durable Objects for consistent tournament state and KV for durable storage}
+        \resumeItem{Implemented allowlisted voter auth, concurrent-safe writes, bracket seeding, and round rebalancing}
+        \resumeItem{Added a single-screen inherits share view so users could capture inheritance data in one screenshot instead of piecing together multiple in-game screens}
+      \resumeItemListEnd
+    \resumeProjectHeading
+      {\textbf{Pretty Hair Care Book} $|$ \emph{React, Node.js, Express, MongoDB} \\
+      \href{https://youtu.be/GovDGytUaD0}{\underline{https://youtu.be/GovDGytUaD0}}}{}
+      \resumeItemListStart
+        \resumeItem{Built and still maintain a full-stack appointment and bookkeeping app used by a local hair business (own hosting + database access on Render)}
+        \resumeItem{Implemented Express/MongoDB APIs for appointments, customers, and business records with a React frontend}
+        \resumeItem{Automated scheduling and record-keeping so the business could stop tracking bookings and books by hand}
+      \resumeItemListEnd
+    \resumeProjectHeading
+      {\textbf{CTFCollab} $|$ \emph{Svelte, Node.js, Express, MongoDB, Docker, REST APIs}}{}
+      \resumeItemListStart
+        \resumeItem{Collaborated in a team of five on an open-source platform for organizing Capture the Flag cybersecurity events}
+        \resumeItem{Owned accessible frontend UI in Svelte, integrated REST APIs for events/challenges/teams, and containerized services with Docker}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Oregon State University}{Corvallis, OR}
+      {Bachelor of Science in Computer Science}{Sep. 2021 -- Jun. 2025}
+  \resumeSubHeadingListEnd
+
+%-----------PROGRAMMING SKILLS-----------
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+\small{\item{
+\textbf{Languages}{: JavaScript, TypeScript, Python, SQL, C/C++, HTML/CSS} \\
+\textbf{Frontend}{: React, Vite, Tailwind CSS, Svelte, Responsive UI} \\
+\textbf{Backend \& APIs}{: Node.js, Express, Hono, REST APIs, Authentication} \\
+\textbf{Data \& Cloud}{: MongoDB, MySQL, Cloudflare Workers, Durable Objects, KV, Docker, Render} \\
+\textbf{Practices}{: Git, Agile, Testing/Debugging, OOP, Data Structures \& Algorithms}
+}}
+\end{itemize}
+
+%-------------------------------------------
+\end{document}
