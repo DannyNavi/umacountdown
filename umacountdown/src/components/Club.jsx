@@ -243,10 +243,21 @@ export default function Club() {
   return (
     <div className="Club-page">
       <div className="Club-wrap">
+<<<<<<< HEAD
         <h1 className="title">Exile All Stars</h1>
 
         {combined ? (
           <div className="Club-combined">
+=======
+        <h1>Exile All Stars</h1>
+        <p className="Club-lead">
+          Top 30 monthly fan earners across the four clubs.
+        </p>
+
+        {combined ? (
+          <div className="Club-combined">
+            <strong>If the top {combined.count} were one club</strong>
+>>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
             <p>
               Monthly fans: <b>{formatFans(combined.monthlyFans)}</b>
               {" · "}

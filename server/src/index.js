@@ -265,6 +265,11 @@ function getUmaApiKey(env) {
 function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
+<<<<<<< HEAD
+=======
+  // v2: partner lookups no longer accept account-level retry fallbacks.
+  url.searchParams.set("v", "2");
+>>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
   url.searchParams.set("id", partnerId);
   url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });
