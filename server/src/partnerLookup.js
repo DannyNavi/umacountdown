@@ -447,12 +447,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       for (const path of paths) {
         const res = await umaGetJson(path);
         if (!res.ok) continue;
-        const found = acceptFoundForKind(
-          extractFound(res.body),
-          res.body,
-          partnerId,
-          idKind
-        );
+        const found = extractFound(res.body);
         if (found) return found;
       }
     }
@@ -635,25 +630,20 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       const streamed =
         winner.kind === "stream" ? winner.streamed : await streamPromise;
       streamBody = streamed.body;
-      // Stream/task payloads for Partner IDs are often account-keyed (no
-      // partner_id) and can return a different parent on the same trainer.
+      const [taskHit, savedHit] = await Promise.all([
+        fetchTaskResult(taskId),
+        savedPromise,
+      ]);
+      // Prefer a share-matched saved row when present. Otherwise trust the
+      // stream/task for this Partner ID job — uma.moe often omits partner_id
+      // on SSE payloads even when the lookup succeeded.
       found =
-        acceptFoundForKind(
-          streamed.found || extractFound(streamed.body),
-          streamed.body ?? streamed.found,
-          partnerId,
-          idKind
-        ) || found;
+        savedHit ||
+        streamed.found ||
+        extractFound(streamed.body) ||
+        taskHit ||
+        found;
       if (!found) {
-        const [taskHit, savedHit] = await Promise.all([
-          fetchTaskResult(taskId),
-          savedPromise,
-        ]);
-        found = taskHit || savedHit;
-      }
-      if (!found) {
-        // Account-keyed streams complete before a share-matched saved row
-        // appears; keep polling saved after rejecting the stream parent.
         found = await fetchSavedPartner(taskId);
       }
       // Do not re-POST Partner IDs after the queue finishes. uma.moe often

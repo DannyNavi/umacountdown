@@ -619,7 +619,7 @@ test("lookup rejects an account-keyed stream parent and uses the Partner ID save
   assert.equal(result.body.inheritance.main_parent_id, 101901);
 });
 
-test("lookup rejects an account-keyed stream parent when no Partner ID saved row exists", async () => {
+test("lookup uses the Partner ID job stream when no share-matched saved row exists", async () => {
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
     if (path === "/api/v4/partner/lookup") {
@@ -638,6 +638,7 @@ test("lookup rejects an account-keyed stream parent when no Partner ID saved row
           inheritance: {
             account_id: "979761542599",
             main_parent_id: 102701,
+            trainer_name: "Ser Rj",
           },
         })}\n\n`
       );
@@ -659,9 +660,9 @@ test("lookup rejects an account-keyed stream parent when no Partner ID saved row
     savedAttempts: 1,
     taskAttempts: 1,
   });
-  assert.equal(result.ok, false);
-  assert.equal(result.status, 502);
-  assert.equal(result.body.result.inheritance, null);
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 102701);
+  assert.equal(result.body.trainer_name, "Ser Rj");
 });
 
 test("lookup does not use a trainer account parent after a queued Partner ID job", async () => {
