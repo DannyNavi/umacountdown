@@ -308,6 +308,7 @@ test("lookup does not keep the pending null result when the stream has data", as
         `event: completed\ndata: ${JSON.stringify({
           status: "completed",
           task_id: 7,
+          partner_id: "163368214",
           inheritance: SAMPLE_INHERITANCE,
         })}\n\n`
       );
@@ -535,6 +536,7 @@ test("lookup keeps stream inheritance instead of an unrelated saved trainer pare
         `event: completed\ndata: ${JSON.stringify({
           status: "completed",
           task_id: 14,
+          partner_id: "966998386",
           inheritance: SAMPLE_INHERITANCE,
         })}\n\n`
       );
@@ -561,6 +563,105 @@ test("lookup keeps stream inheritance instead of an unrelated saved trainer pare
   assert.equal(result.ok, true);
   assert.equal(result.body.inheritance.main_parent_id, 100401);
   assert.equal(result.body.trainer_name, "Asriel");
+});
+
+test("lookup rejects an account-keyed stream parent and uses the Partner ID saved row", async () => {
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 255454509,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/255454509/stream") {
+      return sseResponse(
+        `event: completed\ndata: ${JSON.stringify({
+          status: "completed",
+          task_id: 255454509,
+          inheritance: {
+            account_id: "979761542599",
+            trainer_name: "Ser Rj",
+            main_parent_id: 102701,
+          },
+        })}\n\n`
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([
+        {
+          account_id: "979761542599",
+          trainer_name: "Ser Rj",
+          main_parent_id: 102701,
+          last_updated: "2026-09-08T01:35:53Z",
+        },
+        {
+          partner_id: "940906330",
+          account_id: "979761542599",
+          trainer_name: "Ser Rj",
+          main_parent_id: 101901,
+          last_updated: "2026-09-19T00:00:00Z",
+        },
+      ]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "940906330", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 101901);
+});
+
+test("lookup rejects an account-keyed stream parent when no Partner ID saved row exists", async () => {
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 255454509,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/255454509/stream") {
+      return sseResponse(
+        `event: completed\ndata: ${JSON.stringify({
+          status: "completed",
+          task_id: 255454509,
+          inheritance: {
+            account_id: "979761542599",
+            main_parent_id: 102701,
+          },
+        })}\n\n`
+      );
+    }
+    if (path === "/api/v4/partner/saved") {
+      return jsonResponse([
+        {
+          account_id: "979761542599",
+          main_parent_id: 102701,
+        },
+      ]);
+    }
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "940906330", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 502);
+  assert.equal(result.body.result.inheritance, null);
 });
 
 test("lookup does not use a trainer account parent after a queued Partner ID job", async () => {
