@@ -55,7 +55,7 @@ test("inferIdKind and cache TTL follow parent vs partner", () => {
   assert.equal(inferIdKind("711269443937"), "parent");
   assert.equal(inferIdKind("123456789"), "partner");
   assert.equal(practiceCacheTtlSeconds("parent"), 600);
-  assert.equal(practiceCacheTtlSeconds("partner"), 21600);
+  assert.equal(practiceCacheTtlSeconds("partner"), 300);
 });
 
 test("extractFound ignores a pending POST result with null inheritance", () => {
