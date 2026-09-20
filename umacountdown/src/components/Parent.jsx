@@ -37,7 +37,7 @@ function isRaceSparkFactor(factorId, factorById = new Map()) {
 
 const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
 const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const PRACTICE_CACHE_PREFIX = "uma-practice:v6:";
+const PRACTICE_CACHE_PREFIX = "uma-practice:v7:";
 const PRACTICE_CACHE_TTL_MS = 5 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
 const MOBILE_ROW_KEY = "uma-parent-mobile-row";

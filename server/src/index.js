@@ -265,8 +265,8 @@ function getUmaApiKey(env) {
 function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
-  // v6: shorter partner TTL + require_persistence:false; orphan stale Ryan HITs.
-  url.searchParams.set("v", "6");
+  // v7: Partner IDs clear persisted trainer parents / prefer anonymous share.
+  url.searchParams.set("v", "7");
   url.searchParams.set("id", partnerId);
   url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });
@@ -332,7 +332,16 @@ app.get("/api/v4/practice", async (c) => {
   }
 
   try {
-    const result = await lookupPracticePartner(apiKey, partnerId, { kind });
+    const browserProof =
+      c.req.header("X-Browser-Proof") ||
+      c.req.query("browser_proof") ||
+      c.env?.UMA_BROWSER_PROOF ||
+      c.env?.uma_browser_proof ||
+      null;
+    const result = await lookupPracticePartner(apiKey, partnerId, {
+      kind,
+      browserProof: browserProof ? String(browserProof).trim() : null,
+    });
     const response = c.json(result.body, result.status);
     if (result.ok && result.status === 200) {
       response.headers.set(

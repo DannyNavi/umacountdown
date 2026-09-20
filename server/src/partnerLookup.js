@@ -46,11 +46,31 @@ export function practiceCacheTtlSeconds(kind) {
 }
 
 export function umaHeaders(apiKey, extra = {}) {
-  return {
-    "X-API-Key": apiKey,
+  const headers = {
     Accept: "application/json, text/plain, */*",
     ...extra,
   };
+  // Partner-share lookups must stay anonymous when possible. uma.moe sets
+  // will_persist = user_id.is_some(), and X-API-Key always resolves to a user,
+  // so authenticated streams return partner_inheritance (often an older parent
+  // on the same trainer) instead of the raw practice-share snapshot.
+  if (apiKey) {
+    headers["X-API-Key"] = apiKey;
+  }
+  return headers;
+}
+
+export function umaAnonHeaders(browserProof, extra = {}) {
+  const headers = {
+    Accept: "application/json, text/plain, */*",
+    Origin: "https://uma.moe",
+    Referer: "https://uma.moe/",
+    ...extra,
+  };
+  if (browserProof) {
+    headers["X-Browser-Proof"] = browserProof;
+  }
+  return headers;
 }
 
 function hasTaskId(taskId) {
@@ -379,10 +399,24 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     taskAttempts = 3,
     retryDelayMs = 250,
     kind,
+    browserProof = null,
   } = deps;
 
-  const headers = (extra) => umaHeaders(apiKey, extra);
-  const idKind = kind === ID_KIND_PARENT || kind === ID_KIND_PARTNER ? kind : inferIdKind(partnerId);
+  const idKind =
+    kind === ID_KIND_PARENT || kind === ID_KIND_PARTNER
+      ? kind
+      : inferIdKind(partnerId);
+
+  // Partner IDs must not authenticate as a uma.moe user. API keys force
+  // will_persist=true and the SSE payload becomes partner_inheritance for the
+  // trainer account (e.g. Mejiro Ryan) instead of the practice share (Agnes).
+  const useAnonPartner =
+    idKind === ID_KIND_PARTNER && Boolean(browserProof);
+  const authKey = useAnonPartner ? null : apiKey;
+  const headers = (extra) =>
+    useAnonPartner
+      ? umaAnonHeaders(browserProof, extra)
+      : umaHeaders(authKey, extra);
 
   if (idKind === ID_KIND_PARENT) {
     try {
@@ -411,19 +445,40 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     }
   }
 
-  async function umaGetJson(path) {
+  async function umaGetJson(path, headerOverride) {
     const res = await fetchImpl(`${origin}${path}`, {
-      headers: headers(),
+      headers: headerOverride || headers(),
       signal: AbortSignal.timeout(timeoutMs),
     });
     const body = await readJsonSafe(res);
     return { ok: res.ok, status: res.status, body };
   }
 
+  async function deleteSavedByAccount(accountId) {
+    if (!apiKey || !accountId) return false;
+    try {
+      const res = await fetchImpl(
+        `${origin}/api/v4/partner/saved/${encodeURIComponent(accountId)}`,
+        {
+          method: "DELETE",
+          headers: umaHeaders(apiKey),
+          signal: AbortSignal.timeout(timeoutMs),
+        }
+      );
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   async function fetchSavedPartnerOnce(taskId = null) {
+    // /saved requires an authenticated uma.moe user (API key). Skip when anonymous.
+    if (!authKey) return null;
     const saved = await umaGetJson("/api/v4/partner/saved");
     if (!saved.ok) return null;
-    const row = pickSavedPartner(saved.body, partnerId, taskId, { kind: idKind });
+    const row = pickSavedPartner(saved.body, partnerId, taskId, {
+      kind: idKind,
+    });
     return extractFound(row);
   }
 
@@ -461,10 +516,12 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       streamRes = await fetchImpl(
         `${origin}/api/v4/partner/lookup/${encodeURIComponent(taskId)}/stream`,
         {
-          headers: {
-            "X-API-Key": apiKey,
-            Accept: "text/event-stream",
-          },
+          headers: useAnonPartner
+            ? umaAnonHeaders(browserProof, { Accept: "text/event-stream" })
+            : {
+                "X-API-Key": apiKey,
+                Accept: "text/event-stream",
+              },
           signal: mergeAbortSignals([
             AbortSignal.timeout(timeoutMs),
             streamSignal,
@@ -568,9 +625,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return fetchImpl(`${origin}/api/v4/partner/lookup`, {
       method: "POST",
       headers: headers({ "Content-Type": "application/json" }),
-      // Match uma.moe's anonymous browser client: require_persistence:false.
-      // Logged-in / API-key persistence mode can return a different parent on
-      // the same trainer account (e.g. Mejiro Ryan instead of Agnes Digital).
+      // Anonymous browser posts require_persistence:false. With an API key
+      // uma.moe still sets will_persist=true (user_id present); the flag only
+      // errors when persistence is required without a session.
       body: JSON.stringify({
         partner_id: partnerId,
         label: null,
@@ -580,112 +637,208 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     });
   }
 
-  const startRes = await postLookup();
-
-  let startBody = await readJsonSafe(startRes);
-  if (!startRes.ok) {
-    if (startBody.error === "invalid_api_key") {
-      return {
-        ok: false,
-        status: startRes.status,
-        body: {
-          ...startBody,
-          error:
-            "uma.moe rejected the API key. Set `key` in server/.env or server/.dev.vars (see .env.example).",
-        },
-      };
+  async function runLookupAttempt({ allowPersistedStream }) {
+    const startRes = await postLookup();
+    let startBody = await readJsonSafe(startRes);
+    if (!startRes.ok) {
+      if (startBody.error === "invalid_api_key") {
+        return {
+          ok: false,
+          status: startRes.status,
+          body: {
+            ...startBody,
+            error:
+              "uma.moe rejected the API key. Set `key` in server/.env or server/.dev.vars (see .env.example).",
+          },
+        };
+      }
+      if (startBody.error === "browser_proof_required") {
+        return {
+          ok: false,
+          status: startRes.status,
+          body: {
+            ...startBody,
+            error:
+              "Partner ID lookups need an anonymous uma.moe browser proof (API keys always return a saved trainer parent). Open uma.moe, copy a request's X-Browser-Proof header, and retry with ?browser_proof=...",
+          },
+        };
+      }
+      return { ok: false, status: startRes.status, body: startBody };
     }
-    return { ok: false, status: startRes.status, body: startBody };
-  }
 
-  let found = acceptFoundForKind(
-    extractFound(startBody),
-    startBody,
-    partnerId,
-    idKind
-  );
-  let streamBody = null;
+    const persisted = Boolean(startBody.will_persist);
+    let found = acceptFoundForKind(
+      extractFound(startBody),
+      startBody,
+      partnerId,
+      idKind
+    );
+    let streamBody = null;
+    let rejectedPersistedParent = false;
 
-  if (hasTaskId(startBody.task_id) && !found) {
-    const taskId = startBody.task_id;
-    const streamAbort = new AbortController();
-    let stopSaved = false;
+    if (hasTaskId(startBody.task_id) && !found) {
+      const taskId = startBody.task_id;
+      const streamAbort = new AbortController();
+      let stopSaved = false;
 
-    const savedPromise = fetchSavedPartner(taskId, {
-      stop: () => stopSaved,
-    });
-    const streamPromise = waitForPartnerStream(taskId, streamAbort.signal).catch(
-      (err) => {
+      const savedPromise = fetchSavedPartner(taskId, {
+        stop: () => stopSaved,
+      });
+      const streamPromise = waitForPartnerStream(
+        taskId,
+        streamAbort.signal
+      ).catch((err) => {
         if (isAbortError(err) || err?.name === "AbortError") {
-          return { ok: false, status: 504, body: { error: "Lookup timed out" } };
+          return {
+            ok: false,
+            status: 504,
+            body: { error: "Lookup timed out" },
+          };
         }
         throw err;
-      }
-    );
+      });
 
-    const winner = await Promise.race([
-      savedPromise.then((hit) =>
-        hit ? { kind: "saved", hit } : { kind: "saved-empty" }
-      ),
-      streamPromise.then((streamed) => ({ kind: "stream", streamed })),
-    ]);
-
-    if (winner.kind === "saved") {
-      found = winner.hit;
-      stopSaved = true;
-      streamAbort.abort();
-    } else {
-      const streamed =
-        winner.kind === "stream" ? winner.streamed : await streamPromise;
-      streamBody = streamed.body;
-      const [taskHit, savedHit] = await Promise.all([
-        fetchTaskResult(taskId),
-        savedPromise,
+      const winner = await Promise.race([
+        savedPromise.then((hit) =>
+          hit ? { kind: "saved", hit } : { kind: "saved-empty" }
+        ),
+        streamPromise.then((streamed) => ({ kind: "stream", streamed })),
       ]);
-      // Prefer a share-matched saved row when present. Otherwise trust the
-      // stream/task for this Partner ID job — uma.moe often omits partner_id
-      // on SSE payloads even when the lookup succeeded.
-      found =
-        savedHit ||
-        streamed.found ||
-        extractFound(streamed.body) ||
-        taskHit ||
-        found;
-      if (!found) {
-        found = await fetchSavedPartner(taskId);
+
+      if (winner.kind === "saved") {
+        found = winner.hit;
+        stopSaved = true;
+        streamAbort.abort();
+      } else {
+        const streamed =
+          winner.kind === "stream" ? winner.streamed : await streamPromise;
+        streamBody = streamed.body;
+        const [taskHit, savedHit] = await Promise.all([
+          fetchTaskResult(taskId),
+          savedPromise,
+        ]);
+        // Prefer share-matched saved. For anonymous (will_persist false) trust
+        // the stream. For API-key persistence mode, only trust the stream when
+        // allowed — otherwise we keep an old trainer parent (Ryan vs Agnes).
+        const streamFound =
+          streamed.found || extractFound(streamed.body) || taskHit;
+        const streamOk =
+          streamFound &&
+          (allowPersistedStream ||
+            !persisted ||
+            idKind !== ID_KIND_PARTNER ||
+            citesPartnerShare(streamed.body, partnerId) ||
+            citesPartnerShare(
+              { inheritance: streamFound.inheritance },
+              partnerId
+            ));
+        if (streamFound && !streamOk) {
+          rejectedPersistedParent = true;
+        }
+        found = savedHit || (streamOk ? streamFound : null) || found;
+        if (!found) {
+          found = await fetchSavedPartner(taskId);
+        }
+        stopSaved = true;
+        streamAbort.abort();
+        if (!found && !streamed.ok) return streamed;
       }
-      // Do not re-POST Partner IDs after the queue finishes. uma.moe often
-      // answers that second POST with the trainer's account parent, which can
-      // be a different uma than the one tied to this share / Partner ID.
-      stopSaved = true;
-      streamAbort.abort();
-      if (!found && !streamed.ok) return streamed;
+    }
+
+    if (!found) {
+      found = await fetchSavedPartnerOnce(startBody.task_id);
+    }
+
+    return {
+      ok: Boolean(found),
+      status: found ? 200 : 502,
+      startBody,
+      streamBody,
+      found,
+      persisted,
+      rejectedPersistedParent,
+    };
+  }
+
+  // First attempt. When API-key persistence returns an account-only parent for
+  // a Partner ID, drop that trainer's saved rows and retry so the bot re-fetches
+  // the live practice share instead of replaying partner_inheritance.
+  let attempt = await runLookupAttempt({
+    allowPersistedStream: useAnonPartner || idKind === ID_KIND_PARENT,
+  });
+
+  function accountIdFromAttempt(value) {
+    return (
+      value?.found?.inheritance?.account_id ||
+      value?.streamBody?.inheritance?.account_id ||
+      value?.streamBody?.result?.inheritance?.account_id ||
+      value?.startBody?.result?.inheritance?.account_id ||
+      null
+    );
+  }
+
+  if (idKind === ID_KIND_PARTNER && !useAnonPartner && attempt.persisted) {
+    const accountId = accountIdFromAttempt(attempt);
+    if (accountId) {
+      const cleared = await deleteSavedByAccount(String(accountId));
+      if (cleared) {
+        attempt = await runLookupAttempt({ allowPersistedStream: true });
+        if (attempt.startBody && typeof attempt.startBody === "object") {
+          attempt.startBody = {
+            ...attempt.startBody,
+            cleared_saved_account_id: String(accountId),
+          };
+        }
+      }
     }
   }
 
-  if (!found) {
-    found = await fetchSavedPartnerOnce(startBody.task_id);
-  }
-
-  if (!found) {
+  if (
+    idKind === ID_KIND_PARTNER &&
+    !useAnonPartner &&
+    !browserProof &&
+    attempt.rejectedPersistedParent &&
+    !attempt.found &&
+    attempt.status === 502
+  ) {
+    // Persisted API-key path failed after clear/retry — explain why.
     return {
       ok: false,
       status: 502,
       body: {
         error:
-          idKind === ID_KIND_PARENT
-            ? "Trainer ID was not found. Check the ID and try again."
-            : "Lookup finished but no inheritance data was returned. The Partner ID may have expired.",
-        ...startBody,
-        result: {
-          inheritance: null,
-          trainer_name: null,
-        },
-        stream: streamBody,
+          "Partner ID lookup returned a saved trainer parent (API keys always persist on uma.moe). Retry after clearing uma.moe saved partners, or pass an X-Browser-Proof from an anonymous uma.moe session.",
+        ...(attempt.startBody || {}),
+        result: { inheritance: null, trainer_name: null },
+        stream: attempt.streamBody,
       },
     };
   }
 
+  if (!attempt.found) {
+    if (attempt.ok === false && attempt.body && !attempt.startBody) {
+      return attempt;
+    }
+    return {
+      ok: false,
+      status: attempt.status || 502,
+      body: {
+        error:
+          idKind === ID_KIND_PARENT
+            ? "Trainer ID was not found. Check the ID and try again."
+            : "Lookup finished but no inheritance data was returned. The Partner ID may have expired.",
+        ...(attempt.startBody || attempt.body || {}),
+        result: {
+          inheritance: null,
+          trainer_name: null,
+        },
+        stream: attempt.streamBody,
+      },
+    };
+  }
+
+  const startBody = attempt.startBody || {};
+  const found = attempt.found;
   return {
     ok: true,
     status: 200,
@@ -700,7 +853,12 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         trainer_name: found.trainer_name,
       },
       inheritance: found.inheritance,
-      stream: streamBody,
+      stream: attempt.streamBody,
+      lookup_mode: useAnonPartner
+        ? "anonymous_share"
+        : startBody.will_persist
+          ? "api_key_persisted"
+          : "api_key",
     },
   };
 }
