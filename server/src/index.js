@@ -265,8 +265,8 @@ function getUmaApiKey(env) {
 function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
-  // v3: reject account-keyed SSE/task inheritance for Partner IDs.
-  url.searchParams.set("v", "3");
+  // v4: trust Partner ID job stream/task; still prefer share-matched saved.
+  url.searchParams.set("v", "4");
   url.searchParams.set("id", partnerId);
   url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });
