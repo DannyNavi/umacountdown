@@ -274,11 +274,7 @@ test("lookup uses saved partner when completed SSE has no inheritance", async ()
     }
     if (path === "/api/v4/partner/saved") {
       return jsonResponse([
-<<<<<<< HEAD
-        { ...SAMPLE_INHERITANCE, account_id: "163368214" },
-=======
         { ...SAMPLE_INHERITANCE, partner_id: "163368214", account_id: "711269443937" },
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
       ]);
     }
     return jsonResponse({ error: `unhandled ${path}` }, 404);
@@ -368,10 +364,7 @@ test("lookup returns inheritance from an immediate-complete POST and skips the s
     status: "completed",
     will_persist: false,
     result: {
-<<<<<<< HEAD
-=======
       partner_id: "966998386",
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
       account_id: "711269443937",
       trainer_name: "DannyN",
       follower_num: null,
@@ -401,12 +394,6 @@ test("lookup returns inheritance from an immediate-complete POST and skips the s
   assert.deepEqual(calls, ["/api/v4/partner/lookup"]);
   assert.equal(result.body.trainer_name, "DannyN");
   assert.equal(result.body.result.account_id, "711269443937");
-<<<<<<< HEAD
-  assert.equal(result.body.result.inheritance.main_parent_id, 102001);
-  assert.deepEqual(result.body.inheritance.blue_sparks, [201, 401, 302]);
-});
-
-=======
   assert.equal(result.body.inheritance.main_parent_id, 102001);
   assert.deepEqual(result.body.inheritance.blue_sparks, [201, 401, 302]);
 });
@@ -444,7 +431,6 @@ test("lookup rejects an account-keyed immediate-complete POST for Partner IDs", 
   assert.equal(result.body.result.inheritance, null);
 });
 
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
 test("lookup does not use an unrelated trainer parent for a Practice ID", async () => {
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
@@ -577,11 +563,7 @@ test("lookup keeps stream inheritance instead of an unrelated saved trainer pare
   assert.equal(result.body.trainer_name, "Asriel");
 });
 
-<<<<<<< HEAD
-test("lookup retries POST after a queued Practice ID job finishes", async () => {
-=======
 test("lookup does not use a trainer account parent after a queued Partner ID job", async () => {
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
   let posts = 0;
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
@@ -605,12 +587,8 @@ test("lookup does not use a trainer account parent after a queued Partner ID job
           inheritance: {
             account_id: "711269443937",
             blue_sparks: [201],
-<<<<<<< HEAD
-            main_parent_id: 102001,
-=======
             // Different uma than the Partner ID share (Mejiro Ryan vs Agnes Digital).
             main_parent_id: 102701,
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
           },
         },
       });
@@ -624,9 +602,6 @@ test("lookup does not use a trainer account parent after a queued Partner ID job
     return jsonResponse({ result: { inheritance: null } });
   };
 
-<<<<<<< HEAD
-  const result = await lookupPracticePartner("uma_k_test", "966998386", {
-=======
   const result = await lookupPracticePartner("uma_k_test", "940906330", {
     fetch: fetchImpl,
     retryDelayMs: 0,
@@ -676,18 +651,12 @@ test("lookup prefers the Partner ID share over a trainer account parent in saved
   };
 
   const result = await lookupPracticePartner("uma_k_test", "940906330", {
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
     fetch: fetchImpl,
     retryDelayMs: 0,
     savedAttempts: 1,
     taskAttempts: 1,
   });
   assert.equal(result.ok, true);
-<<<<<<< HEAD
-  assert.equal(posts, 2);
-  assert.equal(result.body.result.account_id, "711269443937");
-  assert.equal(result.body.inheritance.main_parent_id, 102001);
-=======
   assert.equal(result.body.inheritance.main_parent_id, 101901);
 });
 
@@ -730,7 +699,6 @@ test("lookup ignores a task_id-only saved row for Partner IDs", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.status, 502);
   assert.equal(result.body.result.inheritance, null);
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
 });
 
 test("lookup returns a saved partner without waiting for a slow stream", async () => {
@@ -766,13 +734,9 @@ test("lookup returns a saved partner without waiting for a slow stream", async (
       );
     }
     if (path === "/api/v4/partner/saved") {
-<<<<<<< HEAD
-      return jsonResponse([{ ...SAMPLE_INHERITANCE, account_id: "163368214" }]);
-=======
       return jsonResponse([
         { ...SAMPLE_INHERITANCE, partner_id: "163368214", account_id: "711269443937" },
       ]);
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
     }
     return jsonResponse({ result: { inheritance: null } });
   };
@@ -818,13 +782,9 @@ test("lookup does not wait on an open stream after completed", async () => {
       );
     }
     if (path === "/api/v4/partner/saved") {
-<<<<<<< HEAD
-      return jsonResponse([{ ...SAMPLE_INHERITANCE, account_id: "163368214" }]);
-=======
       return jsonResponse([
         { ...SAMPLE_INHERITANCE, partner_id: "163368214", account_id: "711269443937" },
       ]);
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
     }
     return jsonResponse({ result: { inheritance: null } });
   };
@@ -870,13 +830,9 @@ test("lookup fetches task result and saved partner together after an empty compl
       await new Promise((resolve) => setTimeout(resolve, 40));
       inflight.delete(path);
       if (path === "/api/v4/partner/saved") {
-<<<<<<< HEAD
-        return jsonResponse([{ ...SAMPLE_INHERITANCE, account_id: "163368214" }]);
-=======
         return jsonResponse([
           { ...SAMPLE_INHERITANCE, partner_id: "163368214", account_id: "711269443937" },
         ]);
->>>>>>> f018c40b88b5f1cfe094d28b45c67b2f153f4979
       }
       return jsonResponse({ result: { inheritance: null } });
     }
