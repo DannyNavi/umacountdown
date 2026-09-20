@@ -265,8 +265,8 @@ function getUmaApiKey(env) {
 function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
-  // v4: trust Partner ID job stream/task; still prefer share-matched saved.
-  url.searchParams.set("v", "4");
+  // v5: Partner ID lookups send require_persistence:false like uma.moe anon.
+  url.searchParams.set("v", "5");
   url.searchParams.set("id", partnerId);
   url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });

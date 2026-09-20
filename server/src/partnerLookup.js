@@ -567,7 +567,14 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return fetchImpl(`${origin}/api/v4/partner/lookup`, {
       method: "POST",
       headers: headers({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ partner_id: partnerId, label: null }),
+      // Match uma.moe's anonymous browser client: require_persistence:false.
+      // Logged-in / API-key persistence mode can return a different parent on
+      // the same trainer account (e.g. Mejiro Ryan instead of Agnes Digital).
+      body: JSON.stringify({
+        partner_id: partnerId,
+        label: null,
+        require_persistence: false,
+      }),
       signal: AbortSignal.timeout(timeoutMs),
     });
   }
