@@ -155,29 +155,90 @@ export function savedList(payload) {
   return [];
 }
 
-function rowIds(row) {
-  if (!row || typeof row !== "object") return [];
-  return [
-    row.account_id,
-    row.partner_id,
-    row.trainer_id,
-    row.practice_id,
-    row.share_id,
-    row.task_id,
-  ]
+function nonEmptyIds(values) {
+  return values
     .filter((value) => value != null && value !== "")
     .map((value) => String(value));
 }
 
-export function pickSavedPartner(payload, partnerId, taskId = null) {
+function shareIds(row) {
+  if (!row || typeof row !== "object") return [];
+  return nonEmptyIds([row.partner_id, row.practice_id, row.share_id]);
+}
+
+function accountIds(row) {
+  if (!row || typeof row !== "object") return [];
+  return nonEmptyIds([row.account_id, row.trainer_id]);
+}
+
+function rowRecency(row) {
+  return (
+    Date.parse(row?.last_updated || row?.updated_at || row?.created_at || "") ||
+    Number(row?.inheritance_id || row?.id || 0) ||
+    0
+  );
+}
+
+function pickNewestRow(rows) {
+  if (!rows.length) return null;
+  return [...rows].sort((a, b) => rowRecency(b) - rowRecency(a))[0];
+}
+
+export function pickSavedPartner(payload, partnerId, taskId = null, options = {}) {
   const list = savedList(payload);
   if (!list.length) return null;
-  const ids = new Set(
-    [partnerId, taskId].filter((value) => value != null && value !== "").map(String)
-  );
-  // Only return a row for this Practice/Trainer ID (or this job's task_id).
-  // Falling back to the newest saved partner shows some other trainer's uma.
-  return list.find((row) => rowIds(row).some((id) => ids.has(id))) ?? null;
+  const requestedId = partnerId != null && partnerId !== "" ? String(partnerId) : null;
+  const requestedTaskId = taskId != null && taskId !== "" ? String(taskId) : null;
+  // Partner/practice share IDs must match the share code itself. Matching by
+  // account_id or bare task_id can return a different uma from the same trainer.
+  const requireShareId =
+    options.requireShareId === true || options.kind === ID_KIND_PARTNER;
+
+  if (requestedId) {
+    const byShare = list.filter((row) => shareIds(row).includes(requestedId));
+    if (byShare.length) return pickNewestRow(byShare);
+  }
+  if (requireShareId) return null;
+
+  if (requestedTaskId) {
+    const byTask = list.filter((row) => String(row.task_id ?? "") === requestedTaskId);
+    if (byTask.length) return pickNewestRow(byTask);
+  }
+  if (requestedId) {
+    const byAccount = list.filter((row) => accountIds(row).includes(requestedId));
+    if (byAccount.length) return pickNewestRow(byAccount);
+  }
+  return null;
+}
+
+function citesPartnerShare(payload, partnerId) {
+  if (!payload || typeof payload !== "object" || partnerId == null || partnerId === "") {
+    return false;
+  }
+  const want = String(partnerId);
+  const buckets = [
+    payload,
+    payload.result,
+    payload.inheritance,
+    payload.result?.inheritance,
+    payload.data,
+    payload.stream,
+  ];
+  for (const bucket of buckets) {
+    if (!bucket || typeof bucket !== "object") continue;
+    if (shareIds(bucket).includes(want)) return true;
+  }
+  return false;
+}
+
+function acceptFoundForKind(found, sourcePayload, partnerId, idKind) {
+  if (!found) return null;
+  // Partner share lookups must cite this Partner ID. Account-keyed uma.moe
+  // payloads can otherwise return a different parent from the same trainer.
+  if (idKind === ID_KIND_PARTNER && !citesPartnerShare(sourcePayload, partnerId)) {
+    return null;
+  }
+  return found;
 }
 
 function parseJsonPayload(raw) {
@@ -358,10 +419,10 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return { ok: res.ok, status: res.status, body };
   }
 
-  async function fetchSavedPartnerOnce(taskId = null, options = {}) {
+  async function fetchSavedPartnerOnce(taskId = null) {
     const saved = await umaGetJson("/api/v4/partner/saved");
     if (!saved.ok) return null;
-    const row = pickSavedPartner(saved.body, partnerId, taskId);
+    const row = pickSavedPartner(saved.body, partnerId, taskId, { kind: idKind });
     return extractFound(row);
   }
 
@@ -370,7 +431,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       if (options.stop?.()) return null;
       if (attempt > 0 && retryDelayMs) await sleepImpl(retryDelayMs);
       if (options.stop?.()) return null;
-      const found = await fetchSavedPartnerOnce(taskId, options);
+      const found = await fetchSavedPartnerOnce(taskId);
       if (found) return found;
     }
     return null;
@@ -529,7 +590,12 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     return { ok: false, status: startRes.status, body: startBody };
   }
 
-  let found = extractFound(startBody);
+  let found = acceptFoundForKind(
+    extractFound(startBody),
+    startBody,
+    partnerId,
+    idKind
+  );
   let streamBody = null;
 
   if (hasTaskId(startBody.task_id) && !found) {
@@ -575,18 +641,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       if (!found) {
         found = await fetchSavedPartnerOnce(taskId);
       }
-      if (!found && streamed.ok) {
-        // 9-digit Practice IDs are queued. After the job finishes, uma.moe
-        // often serves the same ID as an immediate-complete POST (as the
-        // browser does), keyed by the trainer account rather than the share ID.
-        const retryRes = await postLookup();
-        const retryBody = await readJsonSafe(retryRes);
-        const retryFound = extractFound(retryBody);
-        if (retryFound) {
-          found = retryFound;
-          startBody = retryBody;
-        }
-      }
+      // Do not re-POST Partner IDs after the queue finishes. uma.moe often
+      // answers that second POST with the trainer's account parent, which can
+      // be a different uma than the one tied to this share / Partner ID.
       stopSaved = true;
       streamAbort.abort();
       if (!found && !streamed.ok) return streamed;
