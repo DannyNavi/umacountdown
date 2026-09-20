@@ -358,6 +358,50 @@ test("lookup returns 502 instead of an empty success when nothing is found", asy
   assert.equal(result.body.result.inheritance, null);
 });
 
+test("lookup posts require_persistence false like uma.moe anonymous browser", async () => {
+  let posted = null;
+  const fetchImpl = async (url, init) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      posted = JSON.parse(init.body);
+      return jsonResponse({
+        task_id: 255484664,
+        status: "pending",
+        will_persist: false,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/255484664/stream") {
+      return sseResponse(
+        `event: completed\ndata: ${JSON.stringify({
+          status: "completed",
+          task_id: 255484664,
+          inheritance: {
+            main_parent_id: 101901,
+            trainer_name: "Ser Rj",
+          },
+        })}\n\n`
+      );
+    }
+    if (path === "/api/v4/partner/saved") return jsonResponse([]);
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "940906330", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.deepEqual(posted, {
+    partner_id: "940906330",
+    label: null,
+    require_persistence: false,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 101901);
+});
+
 test("lookup returns inheritance from an immediate-complete POST and skips the stream", async () => {
   const calls = [];
   const payload = {
