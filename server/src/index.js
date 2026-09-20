@@ -265,8 +265,8 @@ function getUmaApiKey(env) {
 function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
-  // v5: Partner ID lookups send require_persistence:false like uma.moe anon.
-  url.searchParams.set("v", "5");
+  // v6: shorter partner TTL + require_persistence:false; orphan stale Ryan HITs.
+  url.searchParams.set("v", "6");
   url.searchParams.set("id", partnerId);
   url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });
@@ -278,6 +278,15 @@ async function matchPracticeCache(cacheKey) {
     return await caches.default.match(cacheKey);
   } catch {
     return null;
+  }
+}
+
+async function deletePracticeCache(cacheKey) {
+  try {
+    if (typeof caches === "undefined" || !caches.default) return false;
+    return await caches.default.delete(cacheKey);
+  } catch {
+    return false;
   }
 }
 
@@ -294,6 +303,10 @@ function putPracticeCache(c, cacheKey, response) {
 app.get("/api/v4/practice", async (c) => {
   const apiKey = getUmaApiKey(c.env);
   const parsed = parsePracticeLookup(c.req.query("id"), c.req.query("type"));
+  const refresh =
+    c.req.query("refresh") === "1" ||
+    c.req.query("refresh") === "true" ||
+    c.req.query("nocache") === "1";
 
   if (!apiKey) {
     return c.json(
@@ -307,11 +320,15 @@ app.get("/api/v4/practice", async (c) => {
 
   const { partnerId, kind } = parsed;
   const cacheKey = practiceCacheKey(c.req.url, partnerId, kind);
-  const cached = await matchPracticeCache(cacheKey);
-  if (cached) {
-    const headers = new Headers(cached.headers);
-    headers.set("X-Cache", "HIT");
-    return new Response(cached.body, { status: cached.status, headers });
+  if (refresh) {
+    await deletePracticeCache(cacheKey);
+  } else {
+    const cached = await matchPracticeCache(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set("X-Cache", "HIT");
+      return new Response(cached.body, { status: cached.status, headers });
+    }
   }
 
   try {
@@ -322,7 +339,7 @@ app.get("/api/v4/practice", async (c) => {
         "Cache-Control",
         `public, max-age=${practiceCacheTtlSeconds(kind)}`
       );
-      response.headers.set("X-Cache", "MISS");
+      response.headers.set("X-Cache", refresh ? "BYPASS" : "MISS");
       putPracticeCache(c, cacheKey, response);
     } else {
       response.headers.set("Cache-Control", "no-store");

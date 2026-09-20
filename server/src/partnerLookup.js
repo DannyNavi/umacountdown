@@ -40,8 +40,9 @@ export function parsePracticeLookup(id, type) {
 
 export function practiceCacheTtlSeconds(kind) {
   // Parent/trainer IDs can change when they train a new uma.
-  // Partner/practice IDs are a 24h snapshot.
-  return kind === ID_KIND_PARENT ? 600 : 21600;
+  // Partner shares are short-lived and lookups must stay fresh — a long TTL
+  // previously kept wrong parents (e.g. Ryan vs Agnes) cached for hours.
+  return kind === ID_KIND_PARENT ? 600 : 300;
 }
 
 export function umaHeaders(apiKey, extra = {}) {

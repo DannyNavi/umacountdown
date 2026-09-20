@@ -37,8 +37,8 @@ function isRaceSparkFactor(factorId, factorById = new Map()) {
 
 const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
 const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const PRACTICE_CACHE_PREFIX = "uma-practice:v5:";
-const PRACTICE_CACHE_TTL_MS = 60 * 60 * 1000;
+const PRACTICE_CACHE_PREFIX = "uma-practice:v6:";
+const PRACTICE_CACHE_TTL_MS = 5 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
 const MOBILE_ROW_KEY = "uma-parent-mobile-row";
 const ID_KIND_KEY = "uma-parent-id-kind";
@@ -154,6 +154,14 @@ function writeCachedPractice(id, payload) {
     );
   } catch {
     // ignore quota / private mode
+  }
+}
+
+function clearCachedPractice(id) {
+  try {
+    sessionStorage.removeItem(practiceCacheKey(id));
+  } catch {
+    // ignore
   }
 }
 
@@ -588,14 +596,20 @@ export default function Parent() {
       return;
     }
 
-    const cached = readCachedPractice(id);
+    // Partner share lookups bypass CDN/worker cache — stale HITs previously
+    // kept the wrong parent for hours. Trainer lookups still use short TTL cache.
+    const refreshPartner = idKind === ID_KIND_PARTNER;
+    if (refreshPartner) clearCachedPractice(id);
+    const cached = refreshPartner ? null : readCachedPractice(id);
     const controller = new AbortController();
     setError("");
     setData(cached);
     setLoading(true);
 
     fetch(
-      `/api/v4/practice?id=${encodeURIComponent(id)}&type=${encodeURIComponent(idKind)}`,
+      `/api/v4/practice?id=${encodeURIComponent(id)}&type=${encodeURIComponent(idKind)}${
+        refreshPartner ? "&refresh=1" : ""
+      }`,
       {
         signal: controller.signal,
       }
