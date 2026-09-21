@@ -665,9 +665,14 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
       // Anonymous browser posts require_persistence:false. With an API key
       // uma.moe still sets will_persist=true (user_id present); the flag only
       // errors when persistence is required without a session.
+      // Unique label on Partner IDs avoids attach-to-stuck active tasks
+      // (uma.moe dedupes on task_data while status is pending/processing).
       body: JSON.stringify({
         partner_id: partnerId,
-        label: null,
+        label:
+          idKind === ID_KIND_PARTNER
+            ? `uc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+            : null,
         require_persistence: false,
       }),
       signal: AbortSignal.timeout(timeoutMs),
@@ -750,6 +755,17 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         const streamed =
           winner.kind === "stream" ? winner.streamed : await streamPromise;
         streamBody = streamed.body;
+        stopSaved = true;
+        streamAbort.abort();
+
+        // Stream timed out / failed — return immediately. Waiting on
+        // fetchTaskResult / saved polls after a stream abort is what pushed
+        // live 504s out to ~56s. If saved had a share match it would have
+        // won the race already.
+        if (!streamed.ok) {
+          return streamed;
+        }
+
         const [taskHit, savedHit] = await Promise.all([
           fetchTaskResult(taskId),
           savedPromise,
@@ -776,9 +792,6 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         if (!found) {
           found = await fetchSavedPartner(taskId);
         }
-        stopSaved = true;
-        streamAbort.abort();
-        if (!found && !streamed.ok) return streamed;
       }
     }
 
