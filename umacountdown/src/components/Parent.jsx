@@ -157,14 +157,6 @@ function writeCachedPractice(id, payload) {
   }
 }
 
-function clearCachedPractice(id) {
-  try {
-    sessionStorage.removeItem(practiceCacheKey(id));
-  } catch {
-    // ignore
-  }
-}
-
 function starCount(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
@@ -620,11 +612,11 @@ export default function Parent() {
       return;
     }
 
-    // Partner share lookups bypass CDN/worker cache — stale HITs previously
-    // kept the wrong parent for hours. Trainer lookups still use short TTL cache.
-    const refreshPartner = idKind === ID_KIND_PARTNER;
-    if (refreshPartner) clearCachedPractice(lookupId);
-    const cached = refreshPartner ? null : readCachedPractice(lookupId);
+    // Use short TTL caches for both kinds. Always bypassing cache for Partner
+    // IDs forced a fresh uma.moe scrape on every page view (~seconds–tens of
+    // seconds). Ryan/Agnes staleness is handled by clear+client-retry, not by
+    // disabling cache. Retries still pass refresh=1.
+    const cached = readCachedPractice(lookupId);
     const controller = new AbortController();
     let active = true;
     const requestedId = lookupId;
@@ -633,12 +625,12 @@ export default function Parent() {
     // Drop the previous result immediately so a slow prior fetch can't leave
     // another ID's character on screen (seen on Opera GX with rapid lookups).
     setData(cached);
-    setLoading(true);
+    setLoading(!cached);
 
     async function loadPractice(attempt = 0) {
       const res = await fetch(
         `/api/v4/practice?id=${encodeURIComponent(requestedId)}&type=${encodeURIComponent(requestedKind)}${
-          refreshPartner || attempt > 0 ? "&refresh=1" : ""
+          attempt > 0 ? "&refresh=1" : ""
         }`,
         {
           signal: controller.signal,
@@ -682,6 +674,13 @@ export default function Parent() {
         throw new Error(body.error || `Lookup failed (${res.status})`);
       }
       return body;
+    }
+
+    // Session cache hit: show it immediately; still revalidate in background
+    // unless this is a Partner ID within TTL (share scrape is expensive).
+    if (cached && idKind === ID_KIND_PARTNER) {
+      setLoading(false);
+      return () => controller.abort();
     }
 
     loadPractice()
