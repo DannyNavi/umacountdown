@@ -606,21 +606,29 @@ export default function Parent() {
     setData(cached);
     setLoading(true);
 
-    fetch(
-      `/api/v4/practice?id=${encodeURIComponent(id)}&type=${encodeURIComponent(idKind)}${
-        refreshPartner ? "&refresh=1" : ""
-      }`,
-      {
-        signal: controller.signal,
+    async function loadPractice(attempt = 0) {
+      const res = await fetch(
+        `/api/v4/practice?id=${encodeURIComponent(id)}&type=${encodeURIComponent(idKind)}${
+          refreshPartner || attempt > 0 ? "&refresh=1" : ""
+        }`,
+        { signal: controller.signal }
+      );
+      const body = await res.json().catch(() => ({}));
+      // Stale uma.moe saves are cleared server-side then the client retries once
+      // in a fresh Worker request (avoids in-request double lookups / 504s).
+      const shouldRetry =
+        attempt < 1 &&
+        (body?.retry === true || res.status === 504 || res.status === 503);
+      if (shouldRetry) {
+        return loadPractice(attempt + 1);
       }
-    )
-      .then(async (res) => {
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(body.error || `Lookup failed (${res.status})`);
-        }
-        return body;
-      })
+      if (!res.ok) {
+        throw new Error(body.error || `Lookup failed (${res.status})`);
+      }
+      return body;
+    }
+
+    loadPractice()
       .then((body) => {
         setData(body);
         writeCachedPractice(id, body);

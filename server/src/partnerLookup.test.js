@@ -454,7 +454,7 @@ test("lookup uses browser proof without API key for Partner IDs", async () => {
   }
 });
 
-test("lookup clears stale persisted trainer saves and retries Partner ID jobs", async () => {
+test("lookup clears stale persisted saves and asks the client to retry once", async () => {
   let posts = 0;
   let deletedAccount = null;
   const fetchImpl = async (url, init) => {
@@ -462,7 +462,7 @@ test("lookup clears stale persisted trainer saves and retries Partner ID jobs", 
     if (path === "/api/v4/partner/lookup") {
       posts += 1;
       return jsonResponse({
-        task_id: posts === 1 ? 11 : 12,
+        task_id: 11,
         status: "pending",
         will_persist: true,
         result: { inheritance: null, trainer_name: null },
@@ -483,20 +483,6 @@ test("lookup clears stale persisted trainer saves and retries Partner ID jobs", 
         })}\n\n`
       );
     }
-    if (path === "/api/v4/partner/lookup/12/stream") {
-      return sseResponse(
-        `event: completed\ndata: ${JSON.stringify({
-          status: "completed",
-          task_id: 12,
-          inheritance: {
-            account_id: "979761542599",
-            main_parent_id: 101901,
-            trainer_name: "Ser Rj",
-            updated_at: "2026-09-20T12:00:00Z",
-          },
-        })}\n\n`
-      );
-    }
     if (path === "/api/v4/partner/saved/979761542599" && init?.method === "DELETE") {
       deletedAccount = "979761542599";
       return jsonResponse({ deleted: 1 });
@@ -512,9 +498,10 @@ test("lookup clears stale persisted trainer saves and retries Partner ID jobs", 
     taskAttempts: 1,
   });
   assert.equal(deletedAccount, "979761542599");
-  assert.equal(posts, 2);
-  assert.equal(result.ok, true);
-  assert.equal(result.body.inheritance.main_parent_id, 101901);
+  assert.equal(posts, 1);
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(result.body.retry, true);
   assert.equal(result.body.cleared_saved_account_id, "979761542599");
 });
 
