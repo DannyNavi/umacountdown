@@ -1,5 +1,7 @@
 const UMA_MOE_ORIGIN = "https://uma.moe";
-const PARTNER_LOOKUP_TIMEOUT_MS = 45000;
+// Keep under the Cloudflare Worker request wall clock so a slow uma.moe job
+// returns a JSON 504 instead of an opaque gateway timeout.
+const PARTNER_LOOKUP_TIMEOUT_MS = 28000;
 export const ID_KIND_PARENT = "parent";
 export const ID_KIND_PARTNER = "partner";
 
@@ -822,9 +824,10 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         { inheritance, ...(attempt.found || {}) },
         partnerId
       );
-    // Only recycle-clear account-level partner_inheritance that looks stale.
-    // Share-matched saved rows keep their own last_updated and must not force
-    // a second full lookup.
+    // Stale account-level partner_inheritance (e.g. Ryan vs Agnes) must be
+    // cleared so the next lookup scrapes the live share. Do NOT run a second
+    // full uma.moe job in this request — that doubles latency and 504s under
+    // the Worker wall clock. The client retries once after this response.
     const staleAccountParent =
       Boolean(attempt.found) &&
       !citesShare &&
@@ -832,13 +835,15 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     if (accountId && staleAccountParent) {
       const cleared = await deleteSavedByAccount(String(accountId));
       if (cleared) {
-        attempt = await runLookupAttempt({ allowPersistedStream: true });
-        if (attempt.startBody && typeof attempt.startBody === "object") {
-          attempt.startBody = {
-            ...attempt.startBody,
+        return {
+          ok: false,
+          status: 503,
+          body: {
+            error: "Refreshing saved partner data. Retrying…",
             cleared_saved_account_id: String(accountId),
-          };
-        }
+            retry: true,
+          },
+        };
       }
     }
   }
