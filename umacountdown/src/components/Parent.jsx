@@ -620,6 +620,9 @@ export default function Parent() {
         attempt < 1 &&
         (body?.retry === true || res.status === 504 || res.status === 503);
       if (shouldRetry) {
+        // Brief pause so uma.moe can finish clearing saved rows before the
+        // follow-up scrape.
+        await new Promise((resolve) => setTimeout(resolve, 750));
         return loadPractice(attempt + 1);
       }
       if (!res.ok) {

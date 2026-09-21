@@ -1,7 +1,7 @@
 const UMA_MOE_ORIGIN = "https://uma.moe";
-// Keep under the Cloudflare Worker request wall clock so a slow uma.moe job
-// returns a JSON 504 instead of an opaque gateway timeout.
-const PARTNER_LOOKUP_TIMEOUT_MS = 28000;
+// Single uma.moe jobs often take 15–35s. Keep this under ~60s Worker wall
+// clock; we never stack two full lookups in one request anymore.
+const PARTNER_LOOKUP_TIMEOUT_MS = 45000;
 export const ID_KIND_PARENT = "parent";
 export const ID_KIND_PARTNER = "partner";
 
