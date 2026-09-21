@@ -4,6 +4,7 @@ import {
   consumeSseText,
   extractFound,
   inferIdKind,
+  isStalePersistedInheritance,
   lookupPracticePartner,
   parsePracticeLookup,
   parseSseBlock,
@@ -453,7 +454,7 @@ test("lookup uses browser proof without API key for Partner IDs", async () => {
   }
 });
 
-test("lookup clears persisted trainer saves and retries Partner ID jobs", async () => {
+test("lookup clears stale persisted trainer saves and retries Partner ID jobs", async () => {
   let posts = 0;
   let deletedAccount = null;
   const fetchImpl = async (url, init) => {
@@ -476,6 +477,8 @@ test("lookup clears persisted trainer saves and retries Partner ID jobs", async 
             account_id: "979761542599",
             main_parent_id: 102701,
             trainer_name: "Ser Rj",
+            // Old saved trainer parent (Ryan), not the share just scraped.
+            updated_at: "2026-08-01T00:00:00Z",
           },
         })}\n\n`
       );
@@ -489,6 +492,7 @@ test("lookup clears persisted trainer saves and retries Partner ID jobs", async 
             account_id: "979761542599",
             main_parent_id: 101901,
             trainer_name: "Ser Rj",
+            updated_at: "2026-09-20T12:00:00Z",
           },
         })}\n\n`
       );
@@ -512,6 +516,73 @@ test("lookup clears persisted trainer saves and retries Partner ID jobs", async 
   assert.equal(result.ok, true);
   assert.equal(result.body.inheritance.main_parent_id, 101901);
   assert.equal(result.body.cleared_saved_account_id, "979761542599");
+});
+
+test("lookup trusts a fresh persisted stream without a second Partner ID job", async () => {
+  let posts = 0;
+  let deleted = false;
+  const fetchImpl = async (url, init) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      posts += 1;
+      return jsonResponse({
+        task_id: 21,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/21/stream") {
+      return sseResponse(
+        `event: completed\ndata: ${JSON.stringify({
+          status: "completed",
+          task_id: 21,
+          inheritance: {
+            account_id: "979761542599",
+            main_parent_id: 106801,
+            trainer_name: "Kitasan",
+            updated_at: new Date().toISOString(),
+          },
+        })}\n\n`
+      );
+    }
+    if (path === "/api/v4/partner/saved/979761542599" && init?.method === "DELETE") {
+      deleted = true;
+      return jsonResponse({ deleted: 1 });
+    }
+    if (path === "/api/v4/partner/saved") return jsonResponse([]);
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const result = await lookupPracticePartner("uma_k_test", "661228465", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 1,
+  });
+  assert.equal(deleted, false);
+  assert.equal(posts, 1);
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 106801);
+  assert.equal(result.body.cleared_saved_account_id, undefined);
+});
+
+test("isStalePersistedInheritance treats missing timestamps as fresh scrapes", () => {
+  assert.equal(isStalePersistedInheritance({ main_parent_id: 1 }), false);
+  assert.equal(
+    isStalePersistedInheritance({
+      main_parent_id: 1,
+      updated_at: "2026-01-01T00:00:00Z",
+    }),
+    true
+  );
+  assert.equal(
+    isStalePersistedInheritance({
+      main_parent_id: 1,
+      updated_at: new Date().toISOString(),
+    }),
+    false
+  );
 });
 
 test("lookup returns inheritance from an immediate-complete POST and skips the stream", async () => {

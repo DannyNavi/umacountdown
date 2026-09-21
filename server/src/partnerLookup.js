@@ -252,6 +252,41 @@ function citesPartnerShare(payload, partnerId) {
   return false;
 }
 
+/** Default: treat partner_inheritance older than 5 minutes as a recycled save. */
+export const STALE_INHERITANCE_MS = 5 * 60 * 1000;
+
+/**
+ * uma.moe API-key streams return partner_inheritance rows. A row whose
+ * updated_at is old is usually a prior trainer save (e.g. Ryan) rather than
+ * the share just scraped. Fresh upserts bump updated_at to now. Raw task
+ * result fallbacks often omit timestamps — those are the live scrape.
+ */
+export function isStalePersistedInheritance(
+  inheritance,
+  nowMs = Date.now(),
+  maxAgeMs = STALE_INHERITANCE_MS
+) {
+  if (!inheritance || typeof inheritance !== "object") return false;
+  const ts = Date.parse(
+    inheritance.updated_at ||
+      inheritance.last_updated ||
+      inheritance.created_at ||
+      ""
+  );
+  if (!Number.isFinite(ts) || ts <= 0) return false;
+  return nowMs - ts > maxAgeMs;
+}
+
+function inheritanceFromAttempt(value) {
+  return (
+    value?.found?.inheritance ||
+    value?.streamBody?.inheritance ||
+    value?.streamBody?.result?.inheritance ||
+    value?.startBody?.result?.inheritance ||
+    null
+  );
+}
+
 function acceptFoundForKind(found, sourcePayload, partnerId, idKind) {
   if (!found) return null;
   // Partner share lookups must cite this Partner ID. Account-keyed uma.moe
@@ -717,9 +752,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
           fetchTaskResult(taskId),
           savedPromise,
         ]);
-        // Prefer share-matched saved. For anonymous (will_persist false) trust
-        // the stream. For API-key persistence mode, only trust the stream when
-        // allowed — otherwise we keep an old trainer parent (Ryan vs Agnes).
+        // Prefer share-matched saved. Trust the stream when allowed (including
+        // fresh API-key partner_inheritance). Reject stale account parents when
+        // allowPersistedStream is false.
         const streamFound =
           streamed.found || extractFound(streamed.body) || taskHit;
         const streamOk =
@@ -760,11 +795,11 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     };
   }
 
-  // First attempt. When API-key persistence returns an account-only parent for
-  // a Partner ID, drop that trainer's saved rows and retry so the bot re-fetches
-  // the live practice share instead of replaying partner_inheritance.
+  // Trust the first stream. API-key Partner lookups used to always DELETE the
+  // trainer's saved rows and run a second full lookup (~2× latency / timeouts).
+  // Only clear+retry when the returned partner_inheritance is stale.
   let attempt = await runLookupAttempt({
-    allowPersistedStream: useAnonPartner || idKind === ID_KIND_PARENT,
+    allowPersistedStream: true,
   });
 
   function accountIdFromAttempt(value) {
@@ -779,7 +814,22 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
 
   if (idKind === ID_KIND_PARTNER && !useAnonPartner && attempt.persisted) {
     const accountId = accountIdFromAttempt(attempt);
-    if (accountId) {
+    const inheritance = inheritanceFromAttempt(attempt);
+    const citesShare =
+      citesPartnerShare(attempt.streamBody, partnerId) ||
+      citesPartnerShare(attempt.startBody, partnerId) ||
+      citesPartnerShare(
+        { inheritance, ...(attempt.found || {}) },
+        partnerId
+      );
+    // Only recycle-clear account-level partner_inheritance that looks stale.
+    // Share-matched saved rows keep their own last_updated and must not force
+    // a second full lookup.
+    const staleAccountParent =
+      Boolean(attempt.found) &&
+      !citesShare &&
+      isStalePersistedInheritance(inheritance);
+    if (accountId && staleAccountParent) {
       const cleared = await deleteSavedByAccount(String(accountId));
       if (cleared) {
         attempt = await runLookupAttempt({ allowPersistedStream: true });
