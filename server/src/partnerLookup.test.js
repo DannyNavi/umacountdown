@@ -394,11 +394,9 @@ test("lookup posts require_persistence false like uma.moe anonymous browser", as
     savedAttempts: 1,
     taskAttempts: 1,
   });
-  assert.deepEqual(posted, {
-    partner_id: "940906330",
-    label: null,
-    require_persistence: false,
-  });
+  assert.equal(posted.partner_id, "940906330");
+  assert.equal(posted.require_persistence, false);
+  assert.match(String(posted.label || ""), /^uc-/);
   assert.equal(result.ok, true);
   assert.equal(result.body.inheritance.main_parent_id, 101901);
 });
@@ -1015,6 +1013,47 @@ test("lookup ignores a task_id-only saved row for Partner IDs", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.status, 502);
   assert.equal(result.body.result.inheritance, null);
+});
+
+test("lookup returns stream timeout without waiting on task result polls", async () => {
+  let taskPolls = 0;
+  const fetchImpl = async (url) => {
+    const path = String(url).replace("https://uma.moe", "");
+    if (path === "/api/v4/partner/lookup") {
+      return jsonResponse({
+        task_id: 77,
+        status: "pending",
+        will_persist: true,
+        result: { inheritance: null, trainer_name: null },
+      });
+    }
+    if (path === "/api/v4/partner/lookup/77/stream") {
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      throw err;
+    }
+    if (path === "/api/v4/partner/lookup/77" || path === "/api/v4/partner/lookup/77/result") {
+      taskPolls += 1;
+      await new Promise((r) => setTimeout(r, 200));
+      return jsonResponse({ result: { inheritance: null } });
+    }
+    if (path === "/api/v4/partner/saved") return jsonResponse([]);
+    return jsonResponse({ result: { inheritance: null } });
+  };
+
+  const started = Date.now();
+  const result = await lookupPracticePartner("uma_k_test", "940906330", {
+    fetch: fetchImpl,
+    retryDelayMs: 0,
+    savedAttempts: 1,
+    taskAttempts: 3,
+    timeoutMs: 5000,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 504);
+  assert.equal(result.body.error, "Lookup timed out");
+  assert.equal(taskPolls, 0);
+  assert.ok(Date.now() - started < 500);
 });
 
 test("lookup returns a saved partner without waiting for a slow stream", async () => {
