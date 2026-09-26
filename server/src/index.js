@@ -265,8 +265,8 @@ function getUmaApiKey(env) {
 function practiceCacheKey(requestUrl, partnerId, kind) {
   const url = new URL(requestUrl);
   url.search = "";
-  // v7: Partner IDs clear persisted trainer parents / prefer anonymous share.
-  url.searchParams.set("v", "7");
+  // v8: flush any poisoned partner cache entries; browser no longer stores these.
+  url.searchParams.set("v", "8");
   url.searchParams.set("id", partnerId);
   url.searchParams.set("type", kind);
   return new Request(url.toString(), { method: "GET" });
@@ -327,6 +327,7 @@ app.get("/api/v4/practice", async (c) => {
     if (cached) {
       const headers = new Headers(cached.headers);
       headers.set("X-Cache", "HIT");
+      headers.set("Cache-Control", "private, no-store");
       return new Response(cached.body, { status: cached.status, headers });
     }
   }
@@ -344,12 +345,17 @@ app.get("/api/v4/practice", async (c) => {
     });
     const response = c.json(result.body, result.status);
     if (result.ok && result.status === 200) {
-      response.headers.set(
+      // Edge Cache API keeps a short TTL copy. Do not let browsers (Opera GX)
+      // HTTP-cache these — wrong IDs were showing a prior character.
+      const edge = response.clone();
+      edge.headers.set(
         "Cache-Control",
         `public, max-age=${practiceCacheTtlSeconds(kind)}`
       );
+      edge.headers.set("X-Cache", refresh ? "BYPASS" : "MISS");
+      putPracticeCache(c, cacheKey, edge);
+      response.headers.set("Cache-Control", "private, no-store");
       response.headers.set("X-Cache", refresh ? "BYPASS" : "MISS");
-      putPracticeCache(c, cacheKey, response);
     } else {
       response.headers.set("Cache-Control", "no-store");
     }
