@@ -37,7 +37,7 @@ function isRaceSparkFactor(factorId, factorById = new Map()) {
 
 const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
 const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const PRACTICE_CACHE_PREFIX = "uma-practice:v7:";
+const PRACTICE_CACHE_PREFIX = "uma-practice:v8:";
 const PRACTICE_CACHE_TTL_MS = 5 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
 const MOBILE_ROW_KEY = "uma-parent-mobile-row";
@@ -626,27 +626,56 @@ export default function Parent() {
     if (refreshPartner) clearCachedPractice(lookupId);
     const cached = refreshPartner ? null : readCachedPractice(lookupId);
     const controller = new AbortController();
+    let active = true;
+    const requestedId = lookupId;
+    const requestedKind = idKind;
     setError("");
+    // Drop the previous result immediately so a slow prior fetch can't leave
+    // another ID's character on screen (seen on Opera GX with rapid lookups).
     setData(cached);
     setLoading(true);
 
     async function loadPractice(attempt = 0) {
       const res = await fetch(
-        `/api/v4/practice?id=${encodeURIComponent(lookupId)}&type=${encodeURIComponent(idKind)}${
+        `/api/v4/practice?id=${encodeURIComponent(requestedId)}&type=${encodeURIComponent(requestedKind)}${
           refreshPartner || attempt > 0 ? "&refresh=1" : ""
         }`,
-        { signal: controller.signal }
+        {
+          signal: controller.signal,
+          cache: "no-store",
+        }
       );
       const body = await res.json().catch(() => ({}));
+      if (!active || controller.signal.aborted) {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      }
       // Stale uma.moe saves are cleared server-side then the client retries once
       // in a fresh Worker request (avoids in-request double lookups / 504s).
       const shouldRetry =
         attempt < 1 &&
         (body?.retry === true || res.status === 504 || res.status === 503);
       if (shouldRetry) {
-        // Brief pause so uma.moe can finish clearing saved rows before the
-        // follow-up scrape.
-        await new Promise((resolve) => setTimeout(resolve, 750));
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, 750);
+          const onAbort = () => {
+            clearTimeout(timer);
+            const err = new Error("aborted");
+            err.name = "AbortError";
+            reject(err);
+          };
+          if (controller.signal.aborted) {
+            onAbort();
+            return;
+          }
+          controller.signal.addEventListener("abort", onAbort, { once: true });
+        });
+        if (!active) {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          throw err;
+        }
         return loadPractice(attempt + 1);
       }
       if (!res.ok) {
@@ -657,12 +686,13 @@ export default function Parent() {
 
     loadPractice()
       .then((body) => {
+        if (!active || controller.signal.aborted) return;
         setData(body);
-        writeCachedPractice(lookupId, body);
+        writeCachedPractice(requestedId, body);
         const inheritance = pickInheritance(body);
         if (!inheritance && !body.error) {
           setError(
-            idKind === ID_KIND_PARENT
+            requestedKind === ID_KIND_PARENT
               ? "This trainer has no inheritance data on uma.moe yet."
               : "Lookup finished but no inheritance data was returned. The Partner ID may have expired."
           );
@@ -671,16 +701,19 @@ export default function Parent() {
         }
       })
       .catch((err) => {
-        if (err.name === "AbortError") return;
+        if (!active || err.name === "AbortError") return;
         if (!cached) {
           setError(err.message || "Failed to look up practice partner");
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (active && !controller.signal.aborted) setLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [lookupId, idKind]);
 
   function setIdKind(next) {
@@ -693,6 +726,10 @@ export default function Parent() {
     const next = draft.replace(/\D/g, "");
     if (!next) return;
     writeStoredIdKind(idKind);
+    if (next !== lookupId) {
+      setData(null);
+      setError("");
+    }
     setLookupId(next);
     writeParentQuery({ id: next, type: idKind });
   }
