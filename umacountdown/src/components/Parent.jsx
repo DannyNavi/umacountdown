@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { e as getCharaByBaseId } from "../../data.js";
 import "./Parent.css";
 
@@ -525,12 +525,25 @@ function PartnerCard({ payload, factorById, hideRaceSparks, mobileRow }) {
   );
 }
 
-export default function Parent() {
+export function ParentIdRedirect() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const digits = String(id || "").replace(/\D/g, "");
+  const next = new URLSearchParams();
+  if (digits) next.set("id", digits);
+  const type = searchParams.get("type");
+  if (type) next.set("type", type);
+  const qs = next.toString();
+  return <Navigate to={qs ? `/parent?${qs}` : "/parent"} replace />;
+}
+
+export default function Parent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const idKind = normalizeIdKind(searchParams.get("type"), id);
-  const [draft, setDraft] = useState(id || "");
+  const idFromQuery = String(searchParams.get("id") || "").replace(/\D/g, "");
+  const idKind = normalizeIdKind(searchParams.get("type"), idFromQuery);
+  const [draft, setDraft] = useState(idFromQuery);
+  const [lookupId, setLookupId] = useState(idFromQuery);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -553,6 +566,16 @@ export default function Parent() {
     const next = event.target.checked;
     setMobileRow(next);
     writeMobileRowPreference(next);
+  }
+
+  function writeParentQuery({ id, type } = {}) {
+    const next = new URLSearchParams();
+    const nextType = type || idKind;
+    if (nextType && nextType !== ID_KIND_PARENT) next.set("type", nextType);
+    const nextId = id != null ? String(id).replace(/\D/g, "") : lookupId;
+    if (nextId) next.set("id", nextId);
+    const qs = next.toString();
+    navigate(qs ? `/parent?${qs}` : "/parent", { replace: true });
   }
 
   useEffect(() => {
@@ -585,11 +608,12 @@ export default function Parent() {
   }, []);
 
   useEffect(() => {
-    setDraft(id || "");
-  }, [id]);
+    setDraft(idFromQuery);
+    setLookupId(idFromQuery);
+  }, [idFromQuery]);
 
   useEffect(() => {
-    if (!id) {
+    if (!lookupId) {
       setData(null);
       setError("");
       setLoading(false);
@@ -599,8 +623,8 @@ export default function Parent() {
     // Partner share lookups bypass CDN/worker cache — stale HITs previously
     // kept the wrong parent for hours. Trainer lookups still use short TTL cache.
     const refreshPartner = idKind === ID_KIND_PARTNER;
-    if (refreshPartner) clearCachedPractice(id);
-    const cached = refreshPartner ? null : readCachedPractice(id);
+    if (refreshPartner) clearCachedPractice(lookupId);
+    const cached = refreshPartner ? null : readCachedPractice(lookupId);
     const controller = new AbortController();
     setError("");
     setData(cached);
@@ -608,7 +632,7 @@ export default function Parent() {
 
     async function loadPractice(attempt = 0) {
       const res = await fetch(
-        `/api/v4/practice?id=${encodeURIComponent(id)}&type=${encodeURIComponent(idKind)}${
+        `/api/v4/practice?id=${encodeURIComponent(lookupId)}&type=${encodeURIComponent(idKind)}${
           refreshPartner || attempt > 0 ? "&refresh=1" : ""
         }`,
         { signal: controller.signal }
@@ -634,7 +658,7 @@ export default function Parent() {
     loadPractice()
       .then((body) => {
         setData(body);
-        writeCachedPractice(id, body);
+        writeCachedPractice(lookupId, body);
         const inheritance = pickInheritance(body);
         if (!inheritance && !body.error) {
           setError(
@@ -657,15 +681,11 @@ export default function Parent() {
       });
 
     return () => controller.abort();
-  }, [id, idKind]);
+  }, [lookupId, idKind]);
 
   function setIdKind(next) {
     writeStoredIdKind(next);
-    if (id) {
-      navigate(`/parent/${id}?type=${next}`, { replace: true });
-      return;
-    }
-    navigate(`/parent?type=${next}`, { replace: true });
+    writeParentQuery({ type: next });
   }
 
   function onSubmit(event) {
@@ -673,7 +693,8 @@ export default function Parent() {
     const next = draft.replace(/\D/g, "");
     if (!next) return;
     writeStoredIdKind(idKind);
-    navigate(`/parent/${next}?type=${idKind}`);
+    setLookupId(next);
+    writeParentQuery({ id: next, type: idKind });
   }
 
   const isParentId = idKind === ID_KIND_PARENT;
@@ -741,7 +762,9 @@ export default function Parent() {
       </div>
 
       {loading ? (
-        <p className="Parent-status">{data ? `Updating ${id}…` : `Looking up ${id}…`}</p>
+        <p className="Parent-status">
+          {data ? `Updating ${lookupId}…` : `Looking up ${lookupId}…`}
+        </p>
       ) : null}
       {error ? <p className="Parent-status error">{error}</p> : null}
       {data ? (
