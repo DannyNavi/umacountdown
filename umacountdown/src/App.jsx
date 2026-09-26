@@ -9,7 +9,7 @@ import Schwarma from "./components/Schwarma"
 import Ozy from "./components/Ozy";
 import Shaz from "./components/Shaz";
 import Club from "./components/Club";
-import Parent from "./components/Parent";
+import Parent, { ParentIdRedirect } from "./components/Parent";
 import VisitTracker from "./components/VisitTracker";
 
 export default function App() {
@@ -28,7 +28,7 @@ export default function App() {
           <Route path="shaz" element={<Shaz/>}/>
           <Route path="club" element={<Club/>}/>
           <Route path="parent" element={<Parent/>}/>
-          <Route path="parent/:id" element={<Parent/>}/>
+          <Route path="parent/:id" element={<ParentIdRedirect/>}/>
         </Routes>
       </BrowserRouter>
     </div>
