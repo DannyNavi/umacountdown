@@ -198,8 +198,7 @@ const QualifyingStage = ({
             /* @__PURE__ */ jsx(Award, { className: "w-4 h-4" }),
             /* @__PURE__ */ jsx("span", { children: "Cast Official Ballot" })
           ] }),
-          /* @__PURE__ */ jsx("h2", { className: "text-xl sm:text-2xl font-black text-white", children: "Select Your Top 5 Contenders" }),
-          /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-1", children: "Start typing an Uma in each box to expand choices and autofill your ranking." })
+          /* @__PURE__ */ jsx("h2", { className: "text-xl sm:text-2xl font-black text-white", children: "Select Your Top 5 Contenders" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "w-full md:w-80 space-y-1.5", children: [
           /* @__PURE__ */ jsxs("label", { className: "block text-xs font-bold text-slate-300 flex items-center gap-1.5", children: [
