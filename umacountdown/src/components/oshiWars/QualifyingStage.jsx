@@ -220,7 +220,7 @@ const QualifyingStage = ({
                 type: "text",
                 value: voterId,
                 onChange: handleVoterIdChange,
-                placeholder: "Your allowed voter ID",
+                placeholder: "trainer id",
                 required: true,
                 className: "w-full bg-slate-950/80 border border-slate-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 rounded-xl px-3.5 py-2 text-sm font-semibold text-white placeholder-slate-500 transition-all outline-none"
               }
