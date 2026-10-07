@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { VersusArena } from "./VersusArena";
-import { Trophy, Crown } from "lucide-react";
+import { Trophy, Crown, ArrowDownUp, Columns3 } from "lucide-react";
+
+const LAYOUT_KEY = "oshi_wars_bracket_layout";
+
+function readStoredLayout() {
+  try {
+    const value = localStorage.getItem(LAYOUT_KEY);
+    if (value === "classic" || value === "bottom-up") return value;
+  } catch {
+    /* private / blocked storage */
+  }
+  return "bottom-up";
+}
 
 export function BracketViewer({
   event,
@@ -10,9 +22,11 @@ export function BracketViewer({
   onFetchCommentary,
 }) {
   const [activeMatchup, setActiveMatchup] = useState(null);
+  const [layout, setLayout] = useState(readStoredLayout);
 
   const matchups = Array.isArray(event?.matchups) ? event.matchups : [];
   const characters = Array.isArray(event?.characters) ? event.characters : [];
+  const isClassic = layout === "classic";
 
   const roundNumbers = Array.from(
     new Set(matchups.map((m) => m.round))
@@ -25,11 +39,45 @@ export function BracketViewer({
 
   const champion = event.winnerId ? getCharacter(event.winnerId) : null;
 
+  const setBracketLayout = (next) => {
+    setLayout(next);
+    try {
+      localStorage.setItem(LAYOUT_KEY, next);
+    } catch {
+      /* private / blocked storage */
+    }
+  };
+
   return (
     <div className="ow-bracket">
       <div className="ow-panel ow-bracket-header">
-        <h2>Tournament Bracket</h2>
+        <div className="ow-bracket-header-row">
+          <h2>Tournament Bracket</h2>
+          <div className="ow-layout-toggle" role="group" aria-label="Bracket layout">
+            <button
+              type="button"
+              className={`ow-layout-btn${!isClassic ? " active" : ""}`}
+              aria-pressed={!isClassic}
+              onClick={() => setBracketLayout("bottom-up")}
+            >
+              <ArrowDownUp size={14} />
+              Bottom-up
+            </button>
+            <button
+              type="button"
+              className={`ow-layout-btn${isClassic ? " active" : ""}`}
+              aria-pressed={isClassic}
+              onClick={() => setBracketLayout("classic")}
+            >
+              <Columns3 size={14} />
+              Classic
+            </button>
+          </div>
+        </div>
         <p className="ow-muted">
+          {isClassic
+            ? "Classic left-to-right bracket — rounds advance across the page."
+            : "Bottom-up bracket — early rounds at the bottom, finals at the top."}{" "}
           Click any matchup to open the Versus Arena and cast a vote.
         </p>
       </div>
@@ -65,7 +113,9 @@ export function BracketViewer({
       )}
 
       <div className="ow-bracket-scroll">
-        <div className="ow-bracket-rounds">
+        <div
+          className={`ow-bracket-rounds${isClassic ? " ow-bracket-rounds--classic" : " ow-bracket-rounds--bottom-up"}`}
+        >
           {roundNumbers.map((roundNum) => {
             const matchesInRound = matchups.filter(
               (m) => m.round === roundNum
