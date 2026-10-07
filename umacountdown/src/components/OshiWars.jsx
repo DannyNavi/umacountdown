@@ -31,9 +31,11 @@ export default function OshiWars() {
 
   const EVENT_ID = "oshi-wars-2026";
 
-  const fetchEvent = async () => {
-    setLoading(true);
-    setLoadError(null);
+  const fetchEvent = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+    }
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
@@ -51,8 +53,11 @@ export default function OshiWars() {
         throw new Error("Invalid tournament data from server");
       }
       setEvent(data);
+      if (silent) setLoadError(null);
     } catch (err) {
       console.error("Error fetching event:", err);
+      // Keep the current UI on background refreshes; only hard-fail initial loads.
+      if (silent) return;
       if (err?.name === "AbortError") {
         setLoadError(
           "Request timed out. Desktop Wi‑Fi or a filter may be blocking the API — try phone data or another network."
@@ -70,7 +75,7 @@ export default function OshiWars() {
       setEvent(null);
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -137,16 +142,20 @@ export default function OshiWars() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voterId, rankings }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         try {
           localStorage.setItem("oshi_wars_voter_id", voterId);
         } catch {
           /* private / blocked storage */
         }
-        await fetchEvent();
+        if (data?.event) {
+          setEvent(data.event);
+        } else {
+          await fetchEvent({ silent: true });
+        }
         return { success: true };
       }
-      const data = await res.json().catch(() => ({}));
       return { success: false, error: data.error || "Failed to submit ballot." };
     } catch (err) {
       console.error("Error submitting ballot:", err);
@@ -203,16 +212,29 @@ export default function OshiWars() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matchupId, characterId, voterId }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         try {
           localStorage.setItem("oshi_wars_voter_id", voterId);
         } catch {
           /* private / blocked storage */
         }
-        await fetchEvent();
-        return { success: true };
+        // Patch the voted matchup in place so the arena doesn't remount/flash.
+        if (data?.matchup) {
+          setEvent((prev) => {
+            if (!prev?.matchups) return prev;
+            return {
+              ...prev,
+              matchups: prev.matchups.map((m) =>
+                m.id === data.matchup.id ? data.matchup : m
+              ),
+            };
+          });
+        } else {
+          await fetchEvent({ silent: true });
+        }
+        return { success: true, matchup: data?.matchup || null };
       }
-      const data = await res.json().catch(() => ({}));
       return { success: false, error: data.error || "Failed to vote." };
     } catch (err) {
       console.error("Error voting matchup:", err);
@@ -235,8 +257,13 @@ export default function OshiWars() {
         },
         body: JSON.stringify({ matchupId, winnerId }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        await fetchEvent();
+        if (data?.event) {
+          setEvent(data.event);
+        } else {
+          await fetchEvent({ silent: true });
+        }
       } else if (res.status === 401) {
         handleAdminLogout();
       }
