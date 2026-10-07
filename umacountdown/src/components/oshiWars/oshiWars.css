@@ -10,8 +10,9 @@
   background-color: #12141c;
   background-image: url(../../images/oshi-wars-bg.jpg);
   background-size: cover;
-  /* vertical wallpaper: bias toward top so character heads stay in frame under cover */
-  background-position: center top;
+  /* vertical wallpaper under landscape cover: center keeps the character in frame
+     (center top mostly shows storm sky on wide viewports) */
+  background-position: center;
   background-repeat: no-repeat;
   /* avoid background-attachment: fixed — desktop browsers honor it and it can blank/jank paint */
   background-attachment: scroll;
