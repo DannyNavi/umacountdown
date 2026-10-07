@@ -75,6 +75,9 @@ export function rebalanceNextRound(event) {
   }
 
   event.currentRound = nextRound;
+  if (event.mode === "chaos" || event.roundDurationHours) {
+    startRoundClock(event, event.roundDurationHours || DEFAULT_ROUND_HOURS);
+  }
   return true;
 }
 
@@ -177,6 +180,96 @@ export function resolveMatchupWinner(
   return matchup.character2Id;
 }
 
+export const DEFAULT_ROUND_HOURS = 24;
+
+/** Start / refresh the voting window for the active bracket round. */
+export function startRoundClock(
+  event,
+  durationHours = DEFAULT_ROUND_HOURS,
+  now = Date.now()
+) {
+  const hours = Number(durationHours) || DEFAULT_ROUND_HOURS;
+  event.roundDurationHours = hours;
+  event.roundEndTime = new Date(now + hours * 60 * 60 * 1000).toISOString();
+  return event;
+}
+
+export function clearRoundClock(event) {
+  event.roundEndTime = null;
+  event.roundDurationHours = null;
+  return event;
+}
+
+export function isRoundExpired(event, now = Date.now()) {
+  if (!event?.roundEndTime || event.stage !== "bracket") return false;
+  const end = new Date(event.roundEndTime).getTime();
+  return Number.isFinite(end) && now >= end;
+}
+
+function markMatchupWinner(event, matchup, winnerId) {
+  matchup.winnerId = winnerId;
+  matchup.isCompleted = true;
+  const loserId =
+    winnerId === matchup.character1Id
+      ? matchup.character2Id
+      : matchup.character1Id;
+  if (loserId) {
+    const loser = event.characters.find((ch) => ch.id === loserId);
+    if (loser) loser.isEliminated = true;
+  }
+}
+
+/**
+ * When a round's 24h window ends, roll/finalize unfinished matchups and
+ * advance. Returns true if tournament state changed.
+ */
+export function resolveExpiredRound(
+  event,
+  now = Date.now(),
+  random = Math.random
+) {
+  if (!isRoundExpired(event, now)) return false;
+
+  const open = (event.matchups || []).filter(
+    (m) => m.round === event.currentRound && !m.isCompleted
+  );
+
+  for (const matchup of open) {
+    if (!matchup.character1Id && !matchup.character2Id) continue;
+    let winnerId = null;
+    if (matchup.character1Id && !matchup.character2Id) {
+      winnerId = matchup.character1Id;
+    } else if (!matchup.character1Id && matchup.character2Id) {
+      winnerId = matchup.character2Id;
+    } else {
+      winnerId = resolveMatchupWinner(event, matchup, null, random);
+    }
+    if (winnerId) markMatchupWinner(event, matchup, winnerId);
+  }
+
+  const currentRoundMatches = (event.matchups || []).filter(
+    (m) => m.round === event.currentRound
+  );
+  if (
+    currentRoundMatches.length === 0 ||
+    !currentRoundMatches.every((m) => m.isCompleted)
+  ) {
+    return open.length > 0;
+  }
+
+  const maxRound = Math.max(...event.matchups.map((m) => m.round));
+  if (event.currentRound >= maxRound) {
+    const final = currentRoundMatches[0];
+    event.winnerId = final?.winnerId || null;
+    event.stage = "completed";
+    clearRoundClock(event);
+    return true;
+  }
+
+  rebalanceNextRound(event);
+  return true;
+}
+
 /** Apply seeded character IDs (index 0 = seed 1) and build a fresh bracket. */
 export function applyManualBracket(event, characterIds, targetSize) {
   const size = targetSize || event.maxTournamentSize || 32;
@@ -214,12 +307,14 @@ export function applyManualBracket(event, characterIds, targetSize) {
   event.mode = "standard";
   event.currentRound = 1;
   event.winnerId = null;
+  clearRoundClock(event);
   return event;
 }
 
 /**
  * Chaos Mode bracket: shuffle the full roster, randomly seed the top N,
- * and open a bracket where votes only weight the dice.
+ * and open a bracket where votes only weight the dice. Each round lasts
+ * 24 hours — unfinished matchups auto-roll when the window ends.
  */
 export function applyChaosBracket(event, targetSize, random = Math.random) {
   const size = targetSize || event.maxTournamentSize || 32;
@@ -250,6 +345,7 @@ export function applyChaosBracket(event, targetSize, random = Math.random) {
   event.currentRound = 1;
   event.winnerId = null;
   event.ballots = [];
+  startRoundClock(event, DEFAULT_ROUND_HOURS);
   return event;
 }
 
@@ -303,6 +399,7 @@ export function beginQualifyingRound(event, durationHours = 24) {
   event.ballots = [];
   event.currentRound = 1;
   event.winnerId = null;
+  clearRoundClock(event);
 
   (event.characters || []).forEach((ch) => {
     ch.qualifyingScore = 0;

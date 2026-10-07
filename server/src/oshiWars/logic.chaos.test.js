@@ -4,7 +4,9 @@ import {
   applyChaosBracket,
   createDefaultEvent,
   pickWeightedMatchupWinner,
+  resolveExpiredRound,
   resolveMatchupWinner,
+  startRoundClock,
 } from "./logic.js";
 
 test("applyChaosBracket randomly seeds a full bracket and sets chaos mode", () => {
@@ -77,4 +79,44 @@ test("resolveMatchupWinner uses majority in standard and weights in chaos", () =
     resolveMatchupWinner({ mode: "chaos" }, matchup, "b", () => 0.05),
     "b"
   );
+});
+
+test("applyChaosBracket starts a 24h round clock", () => {
+  const event = createDefaultEvent();
+  const now = Date.UTC(2026, 0, 1, 12, 0, 0);
+  const realDateNow = Date.now;
+  Date.now = () => now;
+  try {
+    applyChaosBracket(event, 8, () => 0);
+    assert.equal(event.roundDurationHours, 24);
+    assert.equal(
+      event.roundEndTime,
+      new Date(now + 24 * 60 * 60 * 1000).toISOString()
+    );
+  } finally {
+    Date.now = realDateNow;
+  }
+});
+
+test("resolveExpiredRound rolls open matchups and advances the round clock", () => {
+  const event = createDefaultEvent();
+  applyChaosBracket(event, 8, () => 0);
+  const round1 = event.matchups.filter((m) => m.round === 1);
+  assert.ok(round1.length >= 2);
+
+  // Expire the round window
+  event.roundEndTime = new Date(Date.now() - 1000).toISOString();
+  const changed = resolveExpiredRound(event, Date.now(), () => 0.9);
+  assert.equal(changed, true);
+  assert.ok(round1.every((m) => m.isCompleted));
+  assert.equal(event.currentRound, 2);
+  assert.ok(new Date(event.roundEndTime).getTime() > Date.now());
+});
+
+test("startRoundClock sets ISO end from duration hours", () => {
+  const event = createDefaultEvent();
+  const now = Date.UTC(2026, 5, 1, 0, 0, 0);
+  startRoundClock(event, 24, now);
+  assert.equal(event.roundDurationHours, 24);
+  assert.equal(event.roundEndTime, new Date(now + 86400000).toISOString());
 });

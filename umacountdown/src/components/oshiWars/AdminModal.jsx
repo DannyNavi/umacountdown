@@ -207,7 +207,7 @@ const AdminModal = ({
                 /* @__PURE__ */ jsx(Dices, { className: "w-4 h-4 text-violet-400" }),
                 "Chaos Mode"
               ] }),
-              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Randomly seeds 32 Umas into a bracket. Fan votes weight the odds, then each match rolls a winner from those odds." })
+              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Randomly seeds 32 Umas. Votes weight the odds; each round lasts 24 hours, then unfinished matchups auto-roll from those odds." })
             ] }),
             /* @__PURE__ */ jsxs(
               "button",

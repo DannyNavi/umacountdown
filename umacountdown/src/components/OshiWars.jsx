@@ -83,6 +83,24 @@ export default function OshiWars() {
     fetchEvent();
   }, []);
 
+  // Chaos round clocks: refresh often enough to auto-resolve when a 24h window ends.
+  useEffect(() => {
+    if (event?.stage !== "bracket" || !event?.roundEndTime) return undefined;
+    const id = setInterval(() => {
+      fetchEvent({ silent: true });
+    }, 60_000);
+    const endMs = new Date(event.roundEndTime).getTime();
+    const untilEnd = endMs - Date.now();
+    let endTimer;
+    if (untilEnd > 0 && untilEnd < 24 * 60 * 60 * 1000 + 5_000) {
+      endTimer = setTimeout(() => fetchEvent({ silent: true }), untilEnd + 500);
+    }
+    return () => {
+      clearInterval(id);
+      if (endTimer) clearTimeout(endTimer);
+    };
+  }, [event?.stage, event?.roundEndTime, event?.currentRound]);
+
   const handleAdminLogin = async (password) => {
     try {
       const res = await fetch("/api/admin/login", {
@@ -202,7 +220,7 @@ export default function OshiWars() {
       }
       if (
         !window.confirm(
-          "Launch Chaos Mode? Randomly seeds 32 Umas. Votes weight odds; winners are rolled."
+          "Launch Chaos Mode? Randomly seeds 32 Umas. Each round lasts 24 hours; votes weight odds, then winners are rolled."
         )
       ) {
         return { success: false };
