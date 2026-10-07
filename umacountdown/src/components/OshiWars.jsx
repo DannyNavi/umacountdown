@@ -360,8 +360,6 @@ export default function OshiWars() {
       )}
 
       <Navbar
-        stage={event.stage}
-        currentRoundName={currentRoundName}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminModal={() => setIsAdminModalOpen(true)}
         onResetEvent={handleResetEvent}
