@@ -174,12 +174,62 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.35rem;
+  gap: 0.5rem;
   text-align: left;
+}
+
+.ow-bracket-header-row {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .ow-bracket-header h2 {
   font-size: 1.6rem;
+  margin: 0;
+}
+
+.ow-layout-toggle {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+
+.ow-layout-btn {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ow-layout-btn:hover {
+  color: var(--text-h);
+}
+
+.ow-layout-btn.active {
+  background: var(--accent-bg);
+  color: var(--text-h);
+  border: 1px solid var(--accent-border);
 }
 
 .ow-champion-banner {
@@ -207,20 +257,84 @@
   padding-bottom: 0.5rem;
 }
 
-/* Bottom-up bracket: earliest round at the bottom, finals at the top */
 .ow-bracket-rounds {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Bottom-up: earliest round at the bottom, finals at the top */
+.ow-bracket-rounds--bottom-up {
   min-width: 0;
   width: 100%;
-  display: flex;
   flex-direction: column-reverse;
   align-items: stretch;
   justify-content: flex-start;
   gap: 1.5rem;
 }
 
-.ow-round {
+.ow-bracket-rounds--bottom-up .ow-round {
   flex: 0 0 auto;
   width: 100%;
+}
+
+.ow-bracket-rounds--bottom-up .ow-round-matches {
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.ow-bracket-rounds--bottom-up .ow-match {
+  flex: 1 1 220px;
+  max-width: 280px;
+  min-width: min(100%, 200px);
+}
+
+.ow-bracket-rounds--bottom-up .ow-vs-chip {
+  left: 50%;
+  right: auto;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Classic: left-to-right rounds */
+.ow-bracket-rounds--classic {
+  min-width: 900px;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
+}
+
+.ow-bracket-rounds--classic .ow-round {
+  flex: 1;
+  width: auto;
+}
+
+.ow-bracket-rounds--classic .ow-round-matches {
+  flex: 1;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: space-around;
+  gap: 1rem;
+}
+
+.ow-bracket-rounds--classic .ow-match {
+  flex: 0 0 auto;
+  max-width: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.ow-bracket-rounds--classic .ow-vs-chip {
+  left: auto;
+  right: -0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ow-round {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -253,20 +367,11 @@
 }
 
 .ow-round-matches {
-  flex: 0 0 auto;
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: stretch;
-  gap: 0.75rem;
 }
 
 .ow-match {
   position: relative;
-  flex: 1 1 220px;
-  max-width: 280px;
-  min-width: min(100%, 200px);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
