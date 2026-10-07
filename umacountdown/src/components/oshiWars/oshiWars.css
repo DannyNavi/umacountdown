@@ -8,9 +8,10 @@
   min-height: 50em;
   /* solid fallback behind the local key visual */
   background-color: #12141c;
-  background-image: url(../../images/oshi-wars-bg.png);
+  background-image: url(../../images/oshi-wars-bg.jpg);
   background-size: cover;
-  background-position: center;
+  /* vertical wallpaper: bias toward top so character heads stay in frame under cover */
+  background-position: center top;
   background-repeat: no-repeat;
   /* avoid background-attachment: fixed — desktop browsers honor it and it can blank/jank paint */
   background-attachment: scroll;
