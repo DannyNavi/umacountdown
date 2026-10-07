@@ -230,7 +230,7 @@ const QualifyingStage = ({
                 children: "View My Choices"
               }
             )
-          ] }) : /* @__PURE__ */ jsx("p", { className: "text-[10px] text-slate-500", children: "Saved in this browser after you enter it. One ballot per allowed ID." })
+          ] }) : null
         ] })
       ] }),
       /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-5 gap-4", children: RANK_CONFIGS.map((cfg, idx) => {
