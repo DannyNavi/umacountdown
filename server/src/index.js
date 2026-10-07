@@ -2,14 +2,19 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { applyBannerDates, applyBannerDatesToList, buildBannerDateMap } from "./bannerDates.js";
 import {
+  applyChaosBracket,
   applyManualBracket,
   beginQualifyingRound,
+  clearRoundClock,
   createDefaultEvent,
   generateBracketTree,
   generateMatchupCommentary,
+  isRoundExpired,
   loadEventsStore,
   rebalanceNextRound,
   resetOshiEvent,
+  resolveExpiredRound,
+  resolveMatchupWinner,
   saveEventsStore,
   updateEventsStore,
 } from "./oshiWars/logic.js";
@@ -402,12 +407,31 @@ app.get("/api/events", async (c) => {
 });
 
 app.get("/api/events/:id", async (c) => {
+  const eventId = c.req.param("id");
   const eventsStore = await loadEventsStore(c.env);
-  const event = eventsStore[c.req.param("id")];
-  if (!event) {
+  const existing = eventsStore[eventId];
+  if (!existing) {
     return c.json({ error: "Event not found" }, 404);
   }
-  return c.json(event);
+
+  if (!isRoundExpired(existing)) {
+    return c.json(existing);
+  }
+
+  try {
+    const result = await updateEventsStore(c.env, (store) => {
+      const event = store[eventId];
+      if (!event) return { ok: false, status: 404, error: "Event not found" };
+      resolveExpiredRound(event);
+      return { ok: true, payload: event };
+    });
+    if (!result.ok) {
+      return c.json({ error: result.error }, result.status || 404);
+    }
+    return c.json(result.payload);
+  } catch {
+    return c.json(existing);
+  }
 });
 
 app.post("/api/events", async (c) => {
@@ -677,11 +701,41 @@ app.post("/api/events/:id/seed", async (c) => {
   const topContenders = sorted.slice(0, targetSize);
   event.matchups = generateBracketTree(event.id, topContenders, targetSize);
   event.stage = "bracket";
+  event.mode = "standard";
   event.currentRound = 1;
   event.winnerId = null;
+  clearRoundClock(event);
 
   await saveEventsStore(c.env, eventsStore);
   return c.json(event);
+});
+
+/** Admin: Chaos Mode — randomly seed EVERY character; votes weight odds only. */
+app.post("/api/events/:id/chaos-seed", async (c) => {
+  const denied = requireOshiAdmin(c);
+  if (denied) return denied;
+
+  const eventId = c.req.param("id");
+
+  try {
+    const result = await updateEventsStore(c.env, (eventsStore) => {
+      const event = eventsStore[eventId];
+      if (!event) return { ok: false, status: 404, error: "Event not found" };
+      try {
+        applyChaosBracket(event);
+      } catch (err) {
+        return { ok: false, status: 400, error: err.message || "Invalid chaos bracket" };
+      }
+      return { ok: true, payload: event };
+    });
+
+    if (!result.ok) {
+      return c.json({ error: result.error }, result.status || 400);
+    }
+    return c.json(result.payload);
+  } catch (err) {
+    return c.json({ error: err.message || "Failed to start Chaos Mode" }, 409);
+  }
 });
 
 /** Admin: build a bracket from an explicit seed-ordered character ID list. */
@@ -737,11 +791,24 @@ app.post("/api/events/:id/vote-matchup", async (c) => {
       const event = eventsStore[eventId];
       if (!event) return { ok: false, status: 404, error: "Event not found" };
 
+      resolveExpiredRound(event);
+
       const matchup = event.matchups.find((m) => m.id === matchupId);
       if (!matchup) return { ok: false, status: 404, error: "Matchup not found" };
 
       if (matchup.isCompleted) {
         return { ok: false, status: 400, error: "Matchup is already completed" };
+      }
+
+      if (
+        event.roundEndTime &&
+        Date.now() >= new Date(event.roundEndTime).getTime()
+      ) {
+        return {
+          ok: false,
+          status: 400,
+          error: "This round's 24h voting window has ended",
+        };
       }
 
       matchup.voters = Array.isArray(matchup.voters) ? matchup.voters : [];
@@ -765,7 +832,7 @@ app.post("/api/events/:id/vote-matchup", async (c) => {
       }
 
       matchup.voters.push(cleanVoterId);
-      return { ok: true, payload: { success: true, matchup } };
+      return { ok: true, payload: { success: true, matchup, event } };
     });
 
     if (!result.ok) {
@@ -790,17 +857,19 @@ app.post("/api/events/:id/advance-matchup", async (c) => {
       const event = eventsStore[eventId];
       if (!event) return { ok: false, status: 404, error: "Event not found" };
 
+      resolveExpiredRound(event);
+
       const matchup = event.matchups.find((m) => m.id === matchupId);
       if (!matchup) return { ok: false, status: 404, error: "Matchup not found" };
 
-      let winnerId = forcedWinnerId;
-      if (!winnerId) {
-        if (matchup.votes1 >= matchup.votes2) {
-          winnerId = matchup.character1Id;
-        } else {
-          winnerId = matchup.character2Id;
-        }
+      if (matchup.isCompleted) {
+        return {
+          ok: true,
+          payload: { success: true, event, note: "Matchup already completed" },
+        };
       }
+
+      const winnerId = resolveMatchupWinner(event, matchup, forcedWinnerId || null);
 
       if (!winnerId) {
         return { ok: false, status: 400, error: "Cannot determine winner" };
@@ -831,6 +900,7 @@ app.post("/api/events/:id/advance-matchup", async (c) => {
         if (event.currentRound >= maxRound) {
           event.winnerId = winnerId;
           event.stage = "completed";
+          clearRoundClock(event);
         } else {
           rebalanceNextRound(event);
         }
@@ -870,7 +940,7 @@ app.post("/api/events/:id/simulate-round", async (c) => {
     m.votes1 += Math.floor(total * split);
     m.votes2 += Math.floor(total * (1 - split));
 
-    const winnerId = m.votes1 >= m.votes2 ? m.character1Id : m.character2Id;
+    const winnerId = resolveMatchupWinner(event, m, null);
     m.winnerId = winnerId;
     m.isCompleted = true;
 

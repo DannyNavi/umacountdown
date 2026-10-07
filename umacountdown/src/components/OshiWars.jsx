@@ -83,6 +83,24 @@ export default function OshiWars() {
     fetchEvent();
   }, []);
 
+  // Chaos round clocks: refresh often enough to auto-resolve when a 24h window ends.
+  useEffect(() => {
+    if (event?.stage !== "bracket" || !event?.roundEndTime) return undefined;
+    const id = setInterval(() => {
+      fetchEvent({ silent: true });
+    }, 60_000);
+    const endMs = new Date(event.roundEndTime).getTime();
+    const untilEnd = endMs - Date.now();
+    let endTimer;
+    if (untilEnd > 0 && untilEnd < 24 * 60 * 60 * 1000 + 5_000) {
+      endTimer = setTimeout(() => fetchEvent({ silent: true }), untilEnd + 500);
+    }
+    return () => {
+      clearInterval(id);
+      if (endTimer) clearTimeout(endTimer);
+    };
+  }, [event?.stage, event?.roundEndTime, event?.currentRound]);
+
   const handleAdminLogin = async (password) => {
     try {
       const res = await fetch("/api/admin/login", {
@@ -190,6 +208,47 @@ export default function OshiWars() {
       }
     } catch (err) {
       console.error("Error seeding tournament:", err);
+    }
+  };
+
+  const handleChaosSeed = async () => {
+    try {
+      const token = localStorage.getItem("oshi_admin_token");
+      if (!token) {
+        alert("Admin login required to start Chaos Mode.");
+        return { success: false };
+      }
+      if (
+        !window.confirm(
+          "Launch Chaos Mode? Every Uma is randomly seeded (byes fill the bracket). Each round lasts 24 hours; votes weight odds, then winners are rolled."
+        )
+      ) {
+        return { success: false };
+      }
+      const res = await fetch(`/api/events/${EVENT_ID}/chaos-seed`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEvent(data);
+        return { success: true };
+      }
+      if (res.status === 401) {
+        handleAdminLogout();
+        alert("Admin session expired — log in again to start Chaos Mode.");
+      } else {
+        alert(data.error || "Failed to start Chaos Mode.");
+      }
+      return { success: false, error: data.error };
+    } catch (err) {
+      console.error("Error starting Chaos Mode:", err);
+      alert("Failed to start Chaos Mode.");
+      return { success: false };
     }
   };
 
@@ -366,12 +425,14 @@ export default function OshiWars() {
           onLogout={handleAdminLogout}
           onStartQualifying={handleStartQualifying}
           onSeedTournament={handleSeedTournament}
+          onChaosSeed={handleChaosSeed}
           onResetEvent={handleResetEvent}
         />
       )}
 
       <Navbar
         isAdminLoggedIn={isAdminLoggedIn}
+        eventMode={event.mode}
         onOpenAdminModal={() => setIsAdminModalOpen(true)}
         onResetEvent={handleResetEvent}
         onExport={() => setIsExportOpen(true)}
@@ -415,7 +476,10 @@ export default function OshiWars() {
           }}
         >
           <Flame size={14} color="var(--accent)" />
-          <strong>Oshi Wars · 32-Uma Tournament</strong>
+          <strong>
+            Oshi Wars ·{" "}
+            {event.mode === "chaos" ? "Chaos Mode" : "32-Uma Tournament"}
+          </strong>
         </div>
         <p>Part of Uma Countdown</p>
       </footer>
@@ -429,6 +493,7 @@ export default function OshiWars() {
         onLogout={handleAdminLogout}
         onStartQualifying={handleStartQualifying}
         onSeedTournament={() => handleSeedTournament(32)}
+        onChaosSeed={handleChaosSeed}
         onManualBracket={handleManualBracket}
         onResetEvent={handleResetEvent}
       />

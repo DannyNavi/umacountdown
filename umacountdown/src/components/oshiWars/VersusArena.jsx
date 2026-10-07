@@ -16,11 +16,13 @@ export function VersusArena({
   characters,
   isOpen,
   isAdminLoggedIn = false,
+  tournamentMode = "standard",
   onClose,
   onVoteMatchup,
   onAdvanceMatchup,
   onFetchCommentary,
 }) {
+  const isChaos = tournamentMode === "chaos";
   const [voterId, setVoterId] = useState(() => {
     try {
       return localStorage.getItem(VOTER_ID_KEY) || "";
@@ -195,8 +197,9 @@ export function VersusArena({
           <div>
             <p className="ow-muted" style={{ fontSize: "0.75rem", fontWeight: 700 }}>
               {matchup.roundName} · Match #{matchup.position}
+              {isChaos ? " · Chaos odds" : ""}
             </p>
-            <h3>Head-to-Head Versus</h3>
+            <h3>{isChaos ? "Chaos Versus" : "Head-to-Head Versus"}</h3>
           </div>
           <button type="button" className="ow-btn" onClick={onClose} aria-label="Close">
             <X size={16} />
@@ -237,7 +240,9 @@ export function VersusArena({
               disabled={alreadyVotedServer || !!votedCharId}
             />
             <p className="ow-muted" style={{ fontSize: "0.75rem" }}>
-              Saved in this browser. One vote per allowed ID for this matchup.
+              {isChaos
+                ? `Votes set the odds (${pct1}% / ${pct2}%) — the winner is rolled from those weights.`
+                : "Saved in this browser. One vote per allowed ID for this matchup."}
             </p>
             {alreadyVotedServer && (
               <p style={{ color: "var(--accent)", fontWeight: 700, fontSize: "0.85rem" }}>
@@ -360,7 +365,7 @@ export function VersusArena({
                   className="ow-btn ow-btn-accent"
                   onClick={() => onAdvanceMatchup(matchup.id)}
                 >
-                  Finalize votes
+                  {isChaos ? "Roll weighted winner" : "Finalize votes"}
                 </button>
               )}
             </div>

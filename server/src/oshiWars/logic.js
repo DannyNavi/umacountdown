@@ -13,7 +13,20 @@ function getRoundName(roundNum, totalRounds) {
   if (roundsLeft === 3) return "Quarterfinals";
   if (roundsLeft === 4) return "Round of 16";
   if (roundsLeft === 5) return "Round of 32";
+  if (roundsLeft === 6) return "Round of 64";
+  if (roundsLeft === 7) return "Round of 128";
+  if (roundsLeft === 8) return "Round of 256";
   return `Round ${roundNum}`;
+}
+
+/** Smallest power of two >= n (minimum 2). */
+export function nextPowerOfTwo(n) {
+  const count = Math.max(2, Number(n) || 0);
+  return 2 ** Math.ceil(Math.log2(count));
+}
+
+export function isValidBracketSize(size) {
+  return Number.isInteger(size) && size >= 2 && (size & (size - 1)) === 0;
 }
 
 /** Highest seed vs lowest, 2nd highest vs 2nd lowest, etc. */
@@ -75,6 +88,9 @@ export function rebalanceNextRound(event) {
   }
 
   event.currentRound = nextRound;
+  if (event.mode === "chaos" || event.roundDurationHours) {
+    startRoundClock(event, event.roundDurationHours || DEFAULT_ROUND_HOURS);
+  }
   return true;
 }
 
@@ -137,6 +153,136 @@ export function generateBracketTree(eventId, seededChars, bracketSize) {
   return matchups;
 }
 
+/** Fisher–Yates shuffle (optional RNG for tests). */
+export function shuffleInPlace(arr, random = Math.random) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Chaos Mode: votes weight odds; winner is drawn by vote share.
+ * With 0–0 votes, each side has 50%.
+ */
+export function pickWeightedMatchupWinner(matchup, random = Math.random) {
+  const v1 = Number(matchup.votes1) || 0;
+  const v2 = Number(matchup.votes2) || 0;
+  const total = v1 + v2;
+  if (total <= 0) {
+    return random() < 0.5 ? matchup.character1Id : matchup.character2Id;
+  }
+  return random() * total < v1 ? matchup.character1Id : matchup.character2Id;
+}
+
+/** Resolve a matchup winner: forced override, chaos weighted roll, or majority. */
+export function resolveMatchupWinner(
+  event,
+  matchup,
+  forcedWinnerId = null,
+  random = Math.random
+) {
+  if (forcedWinnerId) return forcedWinnerId;
+  if (event?.mode === "chaos") {
+    return pickWeightedMatchupWinner(matchup, random);
+  }
+  if ((matchup.votes1 || 0) >= (matchup.votes2 || 0)) {
+    return matchup.character1Id;
+  }
+  return matchup.character2Id;
+}
+
+export const DEFAULT_ROUND_HOURS = 24;
+
+/** Start / refresh the voting window for the active bracket round. */
+export function startRoundClock(
+  event,
+  durationHours = DEFAULT_ROUND_HOURS,
+  now = Date.now()
+) {
+  const hours = Number(durationHours) || DEFAULT_ROUND_HOURS;
+  event.roundDurationHours = hours;
+  event.roundEndTime = new Date(now + hours * 60 * 60 * 1000).toISOString();
+  return event;
+}
+
+export function clearRoundClock(event) {
+  event.roundEndTime = null;
+  event.roundDurationHours = null;
+  return event;
+}
+
+export function isRoundExpired(event, now = Date.now()) {
+  if (!event?.roundEndTime || event.stage !== "bracket") return false;
+  const end = new Date(event.roundEndTime).getTime();
+  return Number.isFinite(end) && now >= end;
+}
+
+function markMatchupWinner(event, matchup, winnerId) {
+  matchup.winnerId = winnerId;
+  matchup.isCompleted = true;
+  const loserId =
+    winnerId === matchup.character1Id
+      ? matchup.character2Id
+      : matchup.character1Id;
+  if (loserId) {
+    const loser = event.characters.find((ch) => ch.id === loserId);
+    if (loser) loser.isEliminated = true;
+  }
+}
+
+/**
+ * When a round's 24h window ends, roll/finalize unfinished matchups and
+ * advance. Returns true if tournament state changed.
+ */
+export function resolveExpiredRound(
+  event,
+  now = Date.now(),
+  random = Math.random
+) {
+  if (!isRoundExpired(event, now)) return false;
+
+  const open = (event.matchups || []).filter(
+    (m) => m.round === event.currentRound && !m.isCompleted
+  );
+
+  for (const matchup of open) {
+    if (!matchup.character1Id && !matchup.character2Id) continue;
+    let winnerId = null;
+    if (matchup.character1Id && !matchup.character2Id) {
+      winnerId = matchup.character1Id;
+    } else if (!matchup.character1Id && matchup.character2Id) {
+      winnerId = matchup.character2Id;
+    } else {
+      winnerId = resolveMatchupWinner(event, matchup, null, random);
+    }
+    if (winnerId) markMatchupWinner(event, matchup, winnerId);
+  }
+
+  const currentRoundMatches = (event.matchups || []).filter(
+    (m) => m.round === event.currentRound
+  );
+  if (
+    currentRoundMatches.length === 0 ||
+    !currentRoundMatches.every((m) => m.isCompleted)
+  ) {
+    return open.length > 0;
+  }
+
+  const maxRound = Math.max(...event.matchups.map((m) => m.round));
+  if (event.currentRound >= maxRound) {
+    const final = currentRoundMatches[0];
+    event.winnerId = final?.winnerId || null;
+    event.stage = "completed";
+    clearRoundClock(event);
+    return true;
+  }
+
+  rebalanceNextRound(event);
+  return true;
+}
+
 /** Apply seeded character IDs (index 0 = seed 1) and build a fresh bracket. */
 export function applyManualBracket(event, characterIds, targetSize) {
   const size = targetSize || event.maxTournamentSize || 32;
@@ -171,8 +317,84 @@ export function applyManualBracket(event, characterIds, targetSize) {
   event.maxTournamentSize = size;
   event.matchups = generateBracketTree(event.id, seeded, size);
   event.stage = "bracket";
+  event.mode = "standard";
   event.currentRound = 1;
   event.winnerId = null;
+  clearRoundClock(event);
+  return event;
+}
+
+/**
+ * Auto-complete bye matchups (one fighter vs empty slot).
+ * Returns how many byes were resolved.
+ */
+export function resolveByeMatchups(event) {
+  let count = 0;
+  for (const matchup of event.matchups || []) {
+    if (matchup.isCompleted) continue;
+    const a = matchup.character1Id;
+    const b = matchup.character2Id;
+    if (a && !b) {
+      markMatchupWinner(event, matchup, a);
+      count += 1;
+    } else if (!a && b) {
+      markMatchupWinner(event, matchup, b);
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Chaos Mode bracket: shuffle and seed EVERY character, pad the bracket
+ * with byes to the next power of two, and open weighted-random play.
+ * Each round lasts 24 hours — unfinished matchups auto-roll when the window ends.
+ */
+export function applyChaosBracket(event, _ignoredSize, random = Math.random) {
+  const roster = Array.isArray(event.characters) ? [...event.characters] : [];
+  if (roster.length < 2) {
+    throw new Error("Need at least 2 characters for Chaos Mode");
+  }
+
+  shuffleInPlace(roster, random);
+  const size = nextPowerOfTwo(roster.length);
+
+  event.characters.forEach((c) => {
+    c.seed = undefined;
+    c.isEliminated = true;
+  });
+  roster.forEach((char, index) => {
+    char.seed = index + 1;
+    char.isEliminated = false;
+  });
+
+  event.maxTournamentSize = size;
+  event.matchups = generateBracketTree(event.id, roster, size);
+  event.stage = "bracket";
+  event.mode = "chaos";
+  event.currentRound = 1;
+  event.winnerId = null;
+  event.ballots = [];
+
+  // Bye slots (empty seeds past roster length) auto-advance immediately.
+  resolveByeMatchups(event);
+
+  // If round 1 was entirely byes somehow, keep advancing; normally only
+  // some R1 slots are byes so the round stays open for voting.
+  const r1 = event.matchups.filter((m) => m.round === 1);
+  if (r1.length > 0 && r1.every((m) => m.isCompleted)) {
+    const maxRound = Math.max(...event.matchups.map((m) => m.round));
+    if (event.currentRound >= maxRound) {
+      event.winnerId = r1[0]?.winnerId || null;
+      event.stage = "completed";
+      clearRoundClock(event);
+    } else {
+      rebalanceNextRound(event);
+    }
+  } else {
+    startRoundClock(event, DEFAULT_ROUND_HOURS);
+  }
+
   return event;
 }
 
@@ -199,6 +421,7 @@ export function createDefaultEvent() {
     bannerUrl:
       "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&auto=format&fit=crop&q=80",
     stage: "qualifying",
+    mode: "standard",
     maxTournamentSize: 32,
     characters: initialChars,
     matchups: [],
@@ -219,11 +442,13 @@ export function beginQualifyingRound(event, durationHours = 24) {
   const endTime = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 
   event.stage = "qualifying";
+  event.mode = "standard";
   event.qualifyingEndTime = endTime;
   event.matchups = [];
   event.ballots = [];
   event.currentRound = 1;
   event.winnerId = null;
+  clearRoundClock(event);
 
   (event.characters || []).forEach((ch) => {
     ch.qualifyingScore = 0;
@@ -254,8 +479,25 @@ export function normalizeStoreForDo(store) {
   }
 
   let dirty = false;
-  if (defaultEvt.maxTournamentSize !== 32) {
+  // Standard events stay on 32; Chaos may use a larger power-of-two (byes).
+  if (
+    defaultEvt.mode !== "chaos" &&
+    defaultEvt.maxTournamentSize !== 32
+  ) {
     defaultEvt.maxTournamentSize = 32;
+    dirty = true;
+  }
+  if (
+    defaultEvt.mode === "chaos" &&
+    !isValidBracketSize(defaultEvt.maxTournamentSize)
+  ) {
+    defaultEvt.maxTournamentSize = nextPowerOfTwo(
+      defaultEvt.characters?.length || 32
+    );
+    dirty = true;
+  }
+  if (defaultEvt.mode !== "standard" && defaultEvt.mode !== "chaos") {
+    defaultEvt.mode = "standard";
     dirty = true;
   }
   if (!Array.isArray(defaultEvt.ballots)) {

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VersusArena } from "./VersusArena";
-import { Trophy, Crown, ArrowDownUp, Columns3 } from "lucide-react";
+import { Trophy, Crown, ArrowDownUp, Columns3, Clock } from "lucide-react";
 
 const LAYOUT_KEY = "oshi_wars_bracket_layout";
 
@@ -23,10 +23,38 @@ export function BracketViewer({
 }) {
   const [activeMatchup, setActiveMatchup] = useState(null);
   const [layout, setLayout] = useState(readStoredLayout);
+  const [roundTimeLeft, setRoundTimeLeft] = useState(null);
 
   const matchups = Array.isArray(event?.matchups) ? event.matchups : [];
   const characters = Array.isArray(event?.characters) ? event.characters : [];
   const isClassic = layout === "classic";
+  const isChaos = event?.mode === "chaos";
+  const roundEndTime = event?.roundEndTime;
+
+  useEffect(() => {
+    if (!roundEndTime) {
+      setRoundTimeLeft(null);
+      return;
+    }
+    const tick = () => {
+      const diff = new Date(roundEndTime).getTime() - Date.now();
+      if (diff <= 0) {
+        setRoundTimeLeft("Round ended — resolving…");
+        return;
+      }
+      const hrs = Math.floor(diff / (1e3 * 60 * 60));
+      const mins = Math.floor((diff % (1e3 * 60 * 60)) / (1e3 * 60));
+      const secs = Math.floor((diff % (1e3 * 60)) / 1e3);
+      setRoundTimeLeft(
+        `${hrs.toString().padStart(2, "0")}h ${mins
+          .toString()
+          .padStart(2, "0")}m ${secs.toString().padStart(2, "0")}s`
+      );
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [roundEndTime]);
 
   const roundNumbers = Array.from(
     new Set(matchups.map((m) => m.round))
@@ -78,8 +106,24 @@ export function BracketViewer({
           {isClassic
             ? "Classic left-to-right bracket — rounds advance across the page."
             : "Bottom-up bracket — early rounds at the bottom, finals at the top."}{" "}
-          Click any matchup to open the Versus Arena and cast a vote.
+          {isChaos
+            ? "Chaos Mode: votes weight the odds; each round lasts 24 hours, then unfinished matchups auto-roll."
+            : "Click any matchup to open the Versus Arena and cast a vote."}
         </p>
+        {roundTimeLeft && (
+          <p
+            className="ow-badge"
+            style={{
+              marginTop: "0.75rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+            }}
+          >
+            <Clock size={14} />
+            Round {event.currentRound} ends in {roundTimeLeft}
+          </p>
+        )}
       </div>
 
       {champion && (
@@ -216,6 +260,7 @@ export function BracketViewer({
           characters={characters}
           isOpen={!!activeMatchup}
           isAdminLoggedIn={isAdminLoggedIn}
+          tournamentMode={event?.mode || "standard"}
           onClose={() => setActiveMatchup(null)}
           onVoteMatchup={async (mId, cId, voterId) => {
             const result = await onVoteMatchup(mId, cId, voterId);
