@@ -425,7 +425,6 @@ export default function OshiWars() {
           onLogout={handleAdminLogout}
           onStartQualifying={handleStartQualifying}
           onSeedTournament={handleSeedTournament}
-          onChaosSeed={handleChaosSeed}
           onResetEvent={handleResetEvent}
         />
       )}
