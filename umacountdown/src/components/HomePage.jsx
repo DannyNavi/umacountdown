@@ -1,5 +1,6 @@
 import { Link } from "react-router"
 import sil from "../images/sil.png"
+import helios from "../images/helios.png"
 
 import "./HomePage.css"
 
@@ -13,6 +14,13 @@ export default function HomePage(){
                     <h2>Countdown</h2>
                     <Link to="/countdown">
                         <img src={sil}/>
+                    </Link>
+                </div>
+
+                <div className="LinkCard">
+                    <h2>Oshi Wars</h2>
+                    <Link to="/oshiwars">
+                        <img src={helios}/>
                     </Link>
                 </div>
 
