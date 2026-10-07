@@ -13,7 +13,20 @@ function getRoundName(roundNum, totalRounds) {
   if (roundsLeft === 3) return "Quarterfinals";
   if (roundsLeft === 4) return "Round of 16";
   if (roundsLeft === 5) return "Round of 32";
+  if (roundsLeft === 6) return "Round of 64";
+  if (roundsLeft === 7) return "Round of 128";
+  if (roundsLeft === 8) return "Round of 256";
   return `Round ${roundNum}`;
+}
+
+/** Smallest power of two >= n (minimum 2). */
+export function nextPowerOfTwo(n) {
+  const count = Math.max(2, Number(n) || 0);
+  return 2 ** Math.ceil(Math.log2(count));
+}
+
+export function isValidBracketSize(size) {
+  return Number.isInteger(size) && size >= 2 && (size & (size - 1)) === 0;
 }
 
 /** Highest seed vs lowest, 2nd highest vs 2nd lowest, etc. */
@@ -312,40 +325,76 @@ export function applyManualBracket(event, characterIds, targetSize) {
 }
 
 /**
- * Chaos Mode bracket: shuffle the full roster, randomly seed the top N,
- * and open a bracket where votes only weight the dice. Each round lasts
- * 24 hours — unfinished matchups auto-roll when the window ends.
+ * Auto-complete bye matchups (one fighter vs empty slot).
+ * Returns how many byes were resolved.
  */
-export function applyChaosBracket(event, targetSize, random = Math.random) {
-  const size = targetSize || event.maxTournamentSize || 32;
-  if (![8, 16, 32].includes(size)) {
-    throw new Error("Bracket size must be 8, 16, or 32");
+export function resolveByeMatchups(event) {
+  let count = 0;
+  for (const matchup of event.matchups || []) {
+    if (matchup.isCompleted) continue;
+    const a = matchup.character1Id;
+    const b = matchup.character2Id;
+    if (a && !b) {
+      markMatchupWinner(event, matchup, a);
+      count += 1;
+    } else if (!a && b) {
+      markMatchupWinner(event, matchup, b);
+      count += 1;
+    }
   }
+  return count;
+}
+
+/**
+ * Chaos Mode bracket: shuffle and seed EVERY character, pad the bracket
+ * with byes to the next power of two, and open weighted-random play.
+ * Each round lasts 24 hours — unfinished matchups auto-roll when the window ends.
+ */
+export function applyChaosBracket(event, _ignoredSize, random = Math.random) {
   const roster = Array.isArray(event.characters) ? [...event.characters] : [];
-  if (roster.length < size) {
-    throw new Error(`Need at least ${size} characters for Chaos Mode`);
+  if (roster.length < 2) {
+    throw new Error("Need at least 2 characters for Chaos Mode");
   }
 
   shuffleInPlace(roster, random);
-  const selected = roster.slice(0, size);
+  const size = nextPowerOfTwo(roster.length);
 
   event.characters.forEach((c) => {
     c.seed = undefined;
     c.isEliminated = true;
   });
-  selected.forEach((char, index) => {
+  roster.forEach((char, index) => {
     char.seed = index + 1;
     char.isEliminated = false;
   });
 
   event.maxTournamentSize = size;
-  event.matchups = generateBracketTree(event.id, selected, size);
+  event.matchups = generateBracketTree(event.id, roster, size);
   event.stage = "bracket";
   event.mode = "chaos";
   event.currentRound = 1;
   event.winnerId = null;
   event.ballots = [];
-  startRoundClock(event, DEFAULT_ROUND_HOURS);
+
+  // Bye slots (empty seeds past roster length) auto-advance immediately.
+  resolveByeMatchups(event);
+
+  // If round 1 was entirely byes somehow, keep advancing; normally only
+  // some R1 slots are byes so the round stays open for voting.
+  const r1 = event.matchups.filter((m) => m.round === 1);
+  if (r1.length > 0 && r1.every((m) => m.isCompleted)) {
+    const maxRound = Math.max(...event.matchups.map((m) => m.round));
+    if (event.currentRound >= maxRound) {
+      event.winnerId = r1[0]?.winnerId || null;
+      event.stage = "completed";
+      clearRoundClock(event);
+    } else {
+      rebalanceNextRound(event);
+    }
+  } else {
+    startRoundClock(event, DEFAULT_ROUND_HOURS);
+  }
+
   return event;
 }
 
@@ -430,8 +479,21 @@ export function normalizeStoreForDo(store) {
   }
 
   let dirty = false;
-  if (defaultEvt.maxTournamentSize !== 32) {
+  // Standard events stay on 32; Chaos may use a larger power-of-two (byes).
+  if (
+    defaultEvt.mode !== "chaos" &&
+    defaultEvt.maxTournamentSize !== 32
+  ) {
     defaultEvt.maxTournamentSize = 32;
+    dirty = true;
+  }
+  if (
+    defaultEvt.mode === "chaos" &&
+    !isValidBracketSize(defaultEvt.maxTournamentSize)
+  ) {
+    defaultEvt.maxTournamentSize = nextPowerOfTwo(
+      defaultEvt.characters?.length || 32
+    );
     dirty = true;
   }
   if (defaultEvt.mode !== "standard" && defaultEvt.mode !== "chaos") {

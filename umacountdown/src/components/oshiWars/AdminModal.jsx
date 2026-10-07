@@ -51,7 +51,7 @@ const AdminModal = ({
     const result = await onChaosSeed?.();
     setActionLoading(false);
     if (result?.success) {
-      setActionSuccess("Chaos Mode live — random seeds, weighted-random winners.");
+      setActionSuccess("Chaos Mode live — full roster randomly seeded, weighted-random winners.");
     }
   };
   const handleResetClick = async () => {
@@ -207,7 +207,7 @@ const AdminModal = ({
                 /* @__PURE__ */ jsx(Dices, { className: "w-4 h-4 text-violet-400" }),
                 "Chaos Mode"
               ] }),
-              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Randomly seeds 32 Umas. Votes weight the odds; each round lasts 24 hours, then unfinished matchups auto-roll from those odds." })
+              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Randomly seeds every Uma (bye slots pad to the next power of two). Votes weight the odds; each round lasts 24 hours, then unfinished matchups auto-roll." })
             ] }),
             /* @__PURE__ */ jsxs(
               "button",

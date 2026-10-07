@@ -710,21 +710,19 @@ app.post("/api/events/:id/seed", async (c) => {
   return c.json(event);
 });
 
-/** Admin: Chaos Mode — randomly seed a bracket; votes weight odds only. */
+/** Admin: Chaos Mode — randomly seed EVERY character; votes weight odds only. */
 app.post("/api/events/:id/chaos-seed", async (c) => {
   const denied = requireOshiAdmin(c);
   if (denied) return denied;
 
-  const body = await c.req.json().catch(() => ({}));
   const eventId = c.req.param("id");
-  const targetSize = body.maxTournamentSize || 32;
 
   try {
     const result = await updateEventsStore(c.env, (eventsStore) => {
       const event = eventsStore[eventId];
       if (!event) return { ok: false, status: 404, error: "Event not found" };
       try {
-        applyChaosBracket(event, targetSize);
+        applyChaosBracket(event);
       } catch (err) {
         return { ok: false, status: 400, error: err.message || "Invalid chaos bracket" };
       }

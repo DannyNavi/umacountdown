@@ -211,7 +211,7 @@ export default function OshiWars() {
     }
   };
 
-  const handleChaosSeed = async (targetSize = 32) => {
+  const handleChaosSeed = async () => {
     try {
       const token = localStorage.getItem("oshi_admin_token");
       if (!token) {
@@ -220,7 +220,7 @@ export default function OshiWars() {
       }
       if (
         !window.confirm(
-          "Launch Chaos Mode? Randomly seeds 32 Umas. Each round lasts 24 hours; votes weight odds, then winners are rolled."
+          "Launch Chaos Mode? Every Uma is randomly seeded (byes fill the bracket). Each round lasts 24 hours; votes weight odds, then winners are rolled."
         )
       ) {
         return { success: false };
@@ -231,7 +231,7 @@ export default function OshiWars() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ maxTournamentSize: targetSize }),
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -493,7 +493,7 @@ export default function OshiWars() {
         onLogout={handleAdminLogout}
         onStartQualifying={handleStartQualifying}
         onSeedTournament={() => handleSeedTournament(32)}
-        onChaosSeed={() => handleChaosSeed(32)}
+        onChaosSeed={handleChaosSeed}
         onManualBracket={handleManualBracket}
         onResetEvent={handleResetEvent}
       />

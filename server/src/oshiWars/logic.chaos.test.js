@@ -3,36 +3,43 @@ import assert from "node:assert/strict";
 import {
   applyChaosBracket,
   createDefaultEvent,
+  nextPowerOfTwo,
   pickWeightedMatchupWinner,
   resolveExpiredRound,
   resolveMatchupWinner,
   startRoundClock,
 } from "./logic.js";
 
-test("applyChaosBracket randomly seeds a full bracket and sets chaos mode", () => {
-  const event = createDefaultEvent();
-  let i = 0;
-  const sequential = () => {
-    // Deterministic: always pick index 0 from remaining → reverse-ish shuffle pattern
-    i += 0.01;
-    return 0;
-  };
+test("nextPowerOfTwo pads roster counts for brackets", () => {
+  assert.equal(nextPowerOfTwo(2), 2);
+  assert.equal(nextPowerOfTwo(3), 4);
+  assert.equal(nextPowerOfTwo(32), 32);
+  assert.equal(nextPowerOfTwo(145), 256);
+});
 
-  applyChaosBracket(event, 32, sequential);
+test("applyChaosBracket seeds every character into a padded bracket", () => {
+  const event = createDefaultEvent();
+  const rosterSize = event.characters.length;
+  applyChaosBracket(event, null, () => 0);
 
   assert.equal(event.mode, "chaos");
   assert.equal(event.stage, "bracket");
   assert.equal(event.ballots.length, 0);
-  assert.ok(event.matchups.length > 0);
+  assert.equal(event.maxTournamentSize, nextPowerOfTwo(rosterSize));
 
   const seeded = event.characters.filter((c) => c.seed != null);
-  assert.equal(seeded.length, 32);
+  assert.equal(seeded.length, rosterSize);
   const seeds = seeded.map((c) => c.seed).sort((a, b) => a - b);
-  assert.deepEqual(seeds, Array.from({ length: 32 }, (_, n) => n + 1));
+  assert.deepEqual(
+    seeds,
+    Array.from({ length: rosterSize }, (_, n) => n + 1)
+  );
+  // Every roster member is in the bracket; byes are empty slots, not rows
   assert.equal(
     event.characters.filter((c) => !c.isEliminated).length,
-    32
+    rosterSize
   );
+  assert.ok(event.matchups.length > 0);
 });
 
 test("pickWeightedMatchupWinner follows vote share", () => {
@@ -70,7 +77,6 @@ test("resolveMatchupWinner uses majority in standard and weights in chaos", () =
     resolveMatchupWinner({ mode: "standard" }, matchup, null, () => 0),
     "b"
   );
-  // Chaos with random always in a's slice (first 10 of 100)
   assert.equal(
     resolveMatchupWinner({ mode: "chaos" }, matchup, null, () => 0.05),
     "a"
@@ -81,18 +87,30 @@ test("resolveMatchupWinner uses majority in standard and weights in chaos", () =
   );
 });
 
-test("applyChaosBracket starts a 24h round clock", () => {
+test("applyChaosBracket starts a 24h round clock when real matchups remain", () => {
   const event = createDefaultEvent();
   const now = Date.UTC(2026, 0, 1, 12, 0, 0);
   const realDateNow = Date.now;
   Date.now = () => now;
   try {
-    applyChaosBracket(event, 8, () => 0);
+    applyChaosBracket(event, null, () => 0);
     assert.equal(event.roundDurationHours, 24);
     assert.equal(
       event.roundEndTime,
       new Date(now + 24 * 60 * 60 * 1000).toISOString()
     );
+    // Bye matchups in round 1 should already be completed
+    const r1Byes = event.matchups.filter(
+      (m) =>
+        m.round === 1 &&
+        m.isCompleted &&
+        (!m.character1Id || !m.character2Id)
+    );
+    assert.ok(r1Byes.length > 0);
+    const r1Open = event.matchups.filter(
+      (m) => m.round === 1 && !m.isCompleted
+    );
+    assert.ok(r1Open.length > 0);
   } finally {
     Date.now = realDateNow;
   }
@@ -100,17 +118,29 @@ test("applyChaosBracket starts a 24h round clock", () => {
 
 test("resolveExpiredRound rolls open matchups and advances the round clock", () => {
   const event = createDefaultEvent();
-  applyChaosBracket(event, 8, () => 0);
-  const round1 = event.matchups.filter((m) => m.round === 1);
-  assert.ok(round1.length >= 2);
+  // Tiny roster so the bracket stays small in this test
+  event.characters = event.characters.slice(0, 5);
+  applyChaosBracket(event, null, () => 0);
+  assert.equal(event.maxTournamentSize, 8);
 
-  // Expire the round window
+  const openBefore = event.matchups.filter(
+    (m) => m.round === event.currentRound && !m.isCompleted
+  );
+  assert.ok(openBefore.length >= 1);
+
   event.roundEndTime = new Date(Date.now() - 1000).toISOString();
+  const roundBefore = event.currentRound;
   const changed = resolveExpiredRound(event, Date.now(), () => 0.9);
   assert.equal(changed, true);
-  assert.ok(round1.every((m) => m.isCompleted));
-  assert.equal(event.currentRound, 2);
-  assert.ok(new Date(event.roundEndTime).getTime() > Date.now());
+  assert.ok(
+    event.matchups
+      .filter((m) => m.round === roundBefore)
+      .every((m) => m.isCompleted)
+  );
+  assert.ok(event.currentRound > roundBefore || event.stage === "completed");
+  if (event.stage === "bracket") {
+    assert.ok(new Date(event.roundEndTime).getTime() > Date.now());
+  }
 });
 
 test("startRoundClock sets ISO end from duration hours", () => {
