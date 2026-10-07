@@ -178,13 +178,6 @@ const QualifyingStage = ({
           ] })
         ] }),
         /* @__PURE__ */ jsx("h1", { className: "text-3xl sm:text-5xl font-black text-white tracking-tight", children: "QUALIFIERS" }),
-        /* @__PURE__ */ jsxs("p", { className: "text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl", children: [
-          //            Voter for your <strong>Top 5 Umas</strong>! Points are awarded in reverse order (Rank 1 = 5 pts down to Rank 5 = 1 pt)
-
-          "Vote for your ",
-          /* @__PURE__ */ jsx("strong", { children: "Top 5 Umas" }),
-          "! Points are awarded in reverse order (Rank 1 = 5 pts down to Rank 5 = 1 pt)"
-        ] }),
         /* @__PURE__ */ jsxs("div", { className: "pt-2 flex flex-wrap items-center gap-4", children: [
           /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 bg-slate-900/80 border border-slate-700/80 rounded-xl px-4 py-2", children: [
             /* @__PURE__ */ jsx(Trophy, { className: "w-4 h-4 text-amber-400" }),
