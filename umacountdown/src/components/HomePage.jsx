@@ -1,6 +1,5 @@
 import { Link } from "react-router"
-import sil from "../images/sil.png"
-import helios from "../images/helios.png"
+import { Clock, Brackets, Camera } from "lucide-react"
 
 import "./HomePage.css"
 
@@ -12,22 +11,22 @@ export default function HomePage(){
 
                 <div className="LinkCard">
                     <h2>Countdown</h2>
-                    <Link to="/countdown">
-                        <img src={sil}/>
+                    <Link to="/countdown" aria-label="Countdown">
+                        <Clock />
                     </Link>
                 </div>
 
                 <div className="LinkCard">
                     <h2>Oshi Wars</h2>
-                    <Link to="/oshiwars">
-                        <img src={helios}/>
+                    <Link to="/oshiwars" aria-label="Oshi Wars">
+                        <Brackets />
                     </Link>
                 </div>
 
                 <div className="LinkCard">
                     <h2>Parent Share</h2>
-                    <Link to="/parent">
-                        <img src="https://media.gametora.com/umamusume/characters/profile/1019.png"/>
+                    <Link to="/parent" aria-label="Parent Share">
+                        <Camera />
                     </Link>
                 </div>
 

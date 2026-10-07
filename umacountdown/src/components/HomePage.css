@@ -13,10 +13,18 @@
     text-align: center;
 }
 
-.LinkCard img {
-    width: auto;
-    margin: 0 auto;
-    height: 8em;
+.LinkCard a {
+    color: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.LinkCard svg {
+    width: 5.5em;
+    height: 5.5em;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.65));
 }
 
 body .HomePage-Container{
