@@ -1,24 +1,11 @@
-import { Trophy, Flame, RefreshCw, Download, Shield } from "lucide-react";
+import { RefreshCw, Download, Shield } from "lucide-react";
 
 export function Navbar({
-  stage,
-  currentRoundName,
   isAdminLoggedIn,
   onOpenAdminModal,
   onResetEvent,
   onExport,
 }) {
-  const stageLabel = (() => {
-    switch (stage) {
-      case "qualifying":
-        return "24h Top 5 Qualifying";
-      case "completed":
-        return "Tournament Crowned";
-      default:
-        return `Bracket · ${currentRoundName || "Live Rounds"}`;
-    }
-  })();
-
   return (
     <header className="ow-nav">
       <div className="ow-nav-inner">
@@ -26,15 +13,6 @@ export function Navbar({
           <h1>Oshi Wars</h1>
           <p>Uma Musume 1v1 single-elimination turf battles</p>
         </div>
-
-        <span className="ow-badge">
-          {stage === "completed" ? (
-            <Trophy size={14} />
-          ) : (
-            <Flame size={14} />
-          )}
-          {stageLabel}
-        </span>
 
         <div className="ow-nav-actions">
           {onOpenAdminModal && (

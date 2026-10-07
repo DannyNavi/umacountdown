@@ -342,10 +342,6 @@ export default function OshiWars() {
     );
   }
 
-  const currentRoundMatches =
-    event.matchups?.filter((m) => m.round === event.currentRound) || [];
-  const currentRoundName = currentRoundMatches[0]?.roundName;
-
   return (
     <div className="oshi-wars-root" style={{ display: "flex", flexDirection: "column" }}>
       {isAdminLoggedIn && (
@@ -360,8 +356,6 @@ export default function OshiWars() {
       )}
 
       <Navbar
-        stage={event.stage}
-        currentRoundName={currentRoundName}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminModal={() => setIsAdminModalOpen(true)}
         onResetEvent={handleResetEvent}

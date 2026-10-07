@@ -6,9 +6,9 @@
 .oshi-wars-root {
   text-align: left;
   min-height: 50em;
-  /* solid fallback if the remote image is blocked (common on locked-down PCs) */
+  /* solid fallback behind the local key visual */
   background-color: #12141c;
-  background-image: url(https://i.redd.it/g0fjuk1zc47g1.jpeg);
+  background-image: url(../../images/oshi-wars-bg.png);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
