@@ -178,13 +178,6 @@ const QualifyingStage = ({
           ] })
         ] }),
         /* @__PURE__ */ jsx("h1", { className: "text-3xl sm:text-5xl font-black text-white tracking-tight", children: "QUALIFIERS" }),
-        /* @__PURE__ */ jsxs("p", { className: "text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl", children: [
-          //            Voter for your <strong>Top 5 Umas</strong>! Points are awarded in reverse order (Rank 1 = 5 pts down to Rank 5 = 1 pt)
-
-          "Vote for your ",
-          /* @__PURE__ */ jsx("strong", { children: "Top 5 Umas" }),
-          "! Points are awarded in reverse order (Rank 1 = 5 pts down to Rank 5 = 1 pt)"
-        ] }),
         /* @__PURE__ */ jsxs("div", { className: "pt-2 flex flex-wrap items-center gap-4", children: [
           /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 bg-slate-900/80 border border-slate-700/80 rounded-xl px-4 py-2", children: [
             /* @__PURE__ */ jsx(Trophy, { className: "w-4 h-4 text-amber-400" }),
@@ -205,8 +198,7 @@ const QualifyingStage = ({
             /* @__PURE__ */ jsx(Award, { className: "w-4 h-4" }),
             /* @__PURE__ */ jsx("span", { children: "Cast Official Ballot" })
           ] }),
-          /* @__PURE__ */ jsx("h2", { className: "text-xl sm:text-2xl font-black text-white", children: "Select Your Top 5 Contenders" }),
-          /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-1", children: "Start typing an Uma in each box to expand choices and autofill your ranking." })
+          /* @__PURE__ */ jsx("h2", { className: "text-xl sm:text-2xl font-black text-white", children: "Select Your Top 5 Contenders" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "w-full md:w-80 space-y-1.5", children: [
           /* @__PURE__ */ jsxs("label", { className: "block text-xs font-bold text-slate-300 flex items-center gap-1.5", children: [
@@ -238,7 +230,7 @@ const QualifyingStage = ({
                 children: "View My Choices"
               }
             )
-          ] }) : /* @__PURE__ */ jsx("p", { className: "text-[10px] text-slate-500", children: "Saved in this browser after you enter it. One ballot per allowed ID." })
+          ] }) : null
         ] })
       ] }),
       /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-5 gap-4", children: RANK_CONFIGS.map((cfg, idx) => {

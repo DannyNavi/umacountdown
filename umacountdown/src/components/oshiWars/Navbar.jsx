@@ -11,7 +11,6 @@ export function Navbar({
       <div className="ow-nav-inner">
         <div className="ow-nav-brand">
           <h1>Oshi Wars</h1>
-          <p>Uma Musume 1v1 single-elimination turf battles</p>
         </div>
 
         <div className="ow-nav-actions">

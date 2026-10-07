@@ -8,9 +8,10 @@
   min-height: 50em;
   /* solid fallback behind the local key visual */
   background-color: #12141c;
-  background-image: url(../../images/oshi-wars-bg.png);
+  background-image: url(../../images/oshi-wars-bg.jpg);
   background-size: cover;
-  background-position: center;
+  /* vertical wallpaper: bias toward top so character heads stay in frame under cover */
+  background-position: center top;
   background-repeat: no-repeat;
   /* avoid background-attachment: fixed — desktop browsers honor it and it can blank/jank paint */
   background-attachment: scroll;
@@ -122,25 +123,12 @@
   flex-wrap: wrap;
 }
 
-.ow-nav-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
-}
-
 .ow-nav-brand h1 {
   margin: 0;
   font-size: 1.75rem;
   letter-spacing: -0.5px;
   color: #f5d76e;
   text-shadow: 0 2px 0 #000, 0 0 8px rgba(0, 0, 0, 0.45);
-}
-
-.ow-nav-brand p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text);
 }
 
 .ow-nav-actions {
