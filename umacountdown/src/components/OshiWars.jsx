@@ -122,16 +122,31 @@ export default function OshiWars() {
 
   const handleStartQualifying = async (durationHours = 24) => {
     try {
+      const token = localStorage.getItem("oshi_admin_token");
+      if (!token) {
+        alert("Admin login required to start qualifying.");
+        return;
+      }
       const res = await fetch(`/api/events/${EVENT_ID}/start-qualifying`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ durationHours }),
       });
       if (res.ok) {
         setEvent(await res.json());
+      } else if (res.status === 401) {
+        handleAdminLogout();
+        alert("Admin session expired — log in again to start qualifying.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to start qualifying.");
       }
     } catch (err) {
       console.error("Error starting qualifying:", err);
+      alert("Failed to start qualifying.");
     }
   };
 
