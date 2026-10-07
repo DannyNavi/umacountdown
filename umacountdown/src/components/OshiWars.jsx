@@ -200,6 +200,13 @@ export default function OshiWars() {
         alert("Admin login required to start Chaos Mode.");
         return { success: false };
       }
+      if (
+        !window.confirm(
+          "Launch Chaos Mode? Randomly seeds 32 Umas. Votes weight odds; winners are rolled."
+        )
+      ) {
+        return { success: false };
+      }
       const res = await fetch(`/api/events/${EVENT_ID}/chaos-seed`, {
         method: "POST",
         headers: {

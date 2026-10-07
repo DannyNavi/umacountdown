@@ -46,14 +46,11 @@ const AdminModal = ({
     setActionSuccess(`Qualifying locked! Top 32 Umas seeded into Round 1 of 32.`);
   };
   const handleChaosClick = async () => {
-    if (!window.confirm("Launch Chaos Mode? This randomly seeds 32 Umas. Votes will weight odds, but winners are rolled.")) {
-      return;
-    }
     setActionLoading(true);
     setActionSuccess(null);
     const result = await onChaosSeed?.();
     setActionLoading(false);
-    if (result?.success !== false) {
+    if (result?.success) {
       setActionSuccess("Chaos Mode live — random seeds, weighted-random winners.");
     }
   };
