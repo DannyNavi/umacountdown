@@ -366,7 +366,7 @@ const QualifyingStage = ({
             className: "w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-8 py-3 rounded-xl text-xs font-extrabold bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white shadow-xl shadow-rose-600/25 active:scale-95 transition-all disabled:opacity-50",
             children: [
               /* @__PURE__ */ jsx(Sparkles, { className: "w-4 h-4 fill-white" }),
-              /* @__PURE__ */ jsx("span", { children: isSubmitting ? "Submitting Ballot..." : "Submit Official Top 5 Ballot" })
+              /* @__PURE__ */ jsx("span", { children: isSubmitting ? "Submitting..." : "Submit" })
             ]
           }
         )
