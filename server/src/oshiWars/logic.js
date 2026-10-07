@@ -137,6 +137,46 @@ export function generateBracketTree(eventId, seededChars, bracketSize) {
   return matchups;
 }
 
+/** Fisher–Yates shuffle (optional RNG for tests). */
+export function shuffleInPlace(arr, random = Math.random) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Chaos Mode: votes weight odds; winner is drawn by vote share.
+ * With 0–0 votes, each side has 50%.
+ */
+export function pickWeightedMatchupWinner(matchup, random = Math.random) {
+  const v1 = Number(matchup.votes1) || 0;
+  const v2 = Number(matchup.votes2) || 0;
+  const total = v1 + v2;
+  if (total <= 0) {
+    return random() < 0.5 ? matchup.character1Id : matchup.character2Id;
+  }
+  return random() * total < v1 ? matchup.character1Id : matchup.character2Id;
+}
+
+/** Resolve a matchup winner: forced override, chaos weighted roll, or majority. */
+export function resolveMatchupWinner(
+  event,
+  matchup,
+  forcedWinnerId = null,
+  random = Math.random
+) {
+  if (forcedWinnerId) return forcedWinnerId;
+  if (event?.mode === "chaos") {
+    return pickWeightedMatchupWinner(matchup, random);
+  }
+  if ((matchup.votes1 || 0) >= (matchup.votes2 || 0)) {
+    return matchup.character1Id;
+  }
+  return matchup.character2Id;
+}
+
 /** Apply seeded character IDs (index 0 = seed 1) and build a fresh bracket. */
 export function applyManualBracket(event, characterIds, targetSize) {
   const size = targetSize || event.maxTournamentSize || 32;
@@ -171,8 +211,45 @@ export function applyManualBracket(event, characterIds, targetSize) {
   event.maxTournamentSize = size;
   event.matchups = generateBracketTree(event.id, seeded, size);
   event.stage = "bracket";
+  event.mode = "standard";
   event.currentRound = 1;
   event.winnerId = null;
+  return event;
+}
+
+/**
+ * Chaos Mode bracket: shuffle the full roster, randomly seed the top N,
+ * and open a bracket where votes only weight the dice.
+ */
+export function applyChaosBracket(event, targetSize, random = Math.random) {
+  const size = targetSize || event.maxTournamentSize || 32;
+  if (![8, 16, 32].includes(size)) {
+    throw new Error("Bracket size must be 8, 16, or 32");
+  }
+  const roster = Array.isArray(event.characters) ? [...event.characters] : [];
+  if (roster.length < size) {
+    throw new Error(`Need at least ${size} characters for Chaos Mode`);
+  }
+
+  shuffleInPlace(roster, random);
+  const selected = roster.slice(0, size);
+
+  event.characters.forEach((c) => {
+    c.seed = undefined;
+    c.isEliminated = true;
+  });
+  selected.forEach((char, index) => {
+    char.seed = index + 1;
+    char.isEliminated = false;
+  });
+
+  event.maxTournamentSize = size;
+  event.matchups = generateBracketTree(event.id, selected, size);
+  event.stage = "bracket";
+  event.mode = "chaos";
+  event.currentRound = 1;
+  event.winnerId = null;
+  event.ballots = [];
   return event;
 }
 
@@ -199,6 +276,7 @@ export function createDefaultEvent() {
     bannerUrl:
       "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&auto=format&fit=crop&q=80",
     stage: "qualifying",
+    mode: "standard",
     maxTournamentSize: 32,
     characters: initialChars,
     matchups: [],
@@ -219,6 +297,7 @@ export function beginQualifyingRound(event, durationHours = 24) {
   const endTime = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 
   event.stage = "qualifying";
+  event.mode = "standard";
   event.qualifyingEndTime = endTime;
   event.matchups = [];
   event.ballots = [];
@@ -256,6 +335,10 @@ export function normalizeStoreForDo(store) {
   let dirty = false;
   if (defaultEvt.maxTournamentSize !== 32) {
     defaultEvt.maxTournamentSize = 32;
+    dirty = true;
+  }
+  if (defaultEvt.mode !== "standard" && defaultEvt.mode !== "chaos") {
+    defaultEvt.mode = "standard";
     dirty = true;
   }
   if (!Array.isArray(defaultEvt.ballots)) {

@@ -2,6 +2,7 @@ import { RefreshCw, Download, Shield } from "lucide-react";
 
 export function Navbar({
   isAdminLoggedIn,
+  eventMode,
   onOpenAdminModal,
   onResetEvent,
   onExport,
@@ -10,7 +11,7 @@ export function Navbar({
     <header className="ow-nav">
       <div className="ow-nav-inner">
         <div className="ow-nav-brand">
-          <h1>Oshi Wars</h1>
+          <h1>Oshi Wars{eventMode === "chaos" ? " · Chaos" : ""}</h1>
         </div>
 
         <div className="ow-nav-actions">

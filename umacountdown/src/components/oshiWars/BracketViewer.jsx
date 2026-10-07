@@ -216,6 +216,7 @@ export function BracketViewer({
           characters={characters}
           isOpen={!!activeMatchup}
           isAdminLoggedIn={isAdminLoggedIn}
+          tournamentMode={event?.mode || "standard"}
           onClose={() => setActiveMatchup(null)}
           onVoteMatchup={async (mId, cId, voterId) => {
             const result = await onVoteMatchup(mId, cId, voterId);

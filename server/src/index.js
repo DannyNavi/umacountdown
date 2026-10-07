@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { applyBannerDates, applyBannerDatesToList, buildBannerDateMap } from "./bannerDates.js";
 import {
+  applyChaosBracket,
   applyManualBracket,
   beginQualifyingRound,
   createDefaultEvent,
@@ -10,6 +11,7 @@ import {
   loadEventsStore,
   rebalanceNextRound,
   resetOshiEvent,
+  resolveMatchupWinner,
   saveEventsStore,
   updateEventsStore,
 } from "./oshiWars/logic.js";
@@ -677,11 +679,42 @@ app.post("/api/events/:id/seed", async (c) => {
   const topContenders = sorted.slice(0, targetSize);
   event.matchups = generateBracketTree(event.id, topContenders, targetSize);
   event.stage = "bracket";
+  event.mode = "standard";
   event.currentRound = 1;
   event.winnerId = null;
 
   await saveEventsStore(c.env, eventsStore);
   return c.json(event);
+});
+
+/** Admin: Chaos Mode — randomly seed a bracket; votes weight odds only. */
+app.post("/api/events/:id/chaos-seed", async (c) => {
+  const denied = requireOshiAdmin(c);
+  if (denied) return denied;
+
+  const body = await c.req.json().catch(() => ({}));
+  const eventId = c.req.param("id");
+  const targetSize = body.maxTournamentSize || 32;
+
+  try {
+    const result = await updateEventsStore(c.env, (eventsStore) => {
+      const event = eventsStore[eventId];
+      if (!event) return { ok: false, status: 404, error: "Event not found" };
+      try {
+        applyChaosBracket(event, targetSize);
+      } catch (err) {
+        return { ok: false, status: 400, error: err.message || "Invalid chaos bracket" };
+      }
+      return { ok: true, payload: event };
+    });
+
+    if (!result.ok) {
+      return c.json({ error: result.error }, result.status || 400);
+    }
+    return c.json(result.payload);
+  } catch (err) {
+    return c.json({ error: err.message || "Failed to start Chaos Mode" }, 409);
+  }
 });
 
 /** Admin: build a bracket from an explicit seed-ordered character ID list. */
@@ -793,14 +826,7 @@ app.post("/api/events/:id/advance-matchup", async (c) => {
       const matchup = event.matchups.find((m) => m.id === matchupId);
       if (!matchup) return { ok: false, status: 404, error: "Matchup not found" };
 
-      let winnerId = forcedWinnerId;
-      if (!winnerId) {
-        if (matchup.votes1 >= matchup.votes2) {
-          winnerId = matchup.character1Id;
-        } else {
-          winnerId = matchup.character2Id;
-        }
-      }
+      const winnerId = resolveMatchupWinner(event, matchup, forcedWinnerId || null);
 
       if (!winnerId) {
         return { ok: false, status: 400, error: "Cannot determine winner" };
@@ -870,7 +896,7 @@ app.post("/api/events/:id/simulate-round", async (c) => {
     m.votes1 += Math.floor(total * split);
     m.votes2 += Math.floor(total * (1 - split));
 
-    const winnerId = m.votes1 >= m.votes2 ? m.character1Id : m.character2Id;
+    const winnerId = resolveMatchupWinner(event, m, null);
     m.winnerId = winnerId;
     m.isCompleted = true;
 

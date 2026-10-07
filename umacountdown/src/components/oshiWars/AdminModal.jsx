@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useState } from "react";
-import { Shield, Lock, Play, Sparkles, RefreshCw, X, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Shield, Lock, Play, Sparkles, RefreshCw, X, CheckCircle2, AlertCircle, Clock, Dices } from "lucide-react";
 import { ManualBracketBuilder } from "./ManualBracketBuilder";
 const AdminModal = ({
   isOpen,
@@ -11,6 +11,7 @@ const AdminModal = ({
   onLogout,
   onStartQualifying,
   onSeedTournament,
+  onChaosSeed,
   onManualBracket,
   onResetEvent
 }) => {
@@ -43,6 +44,18 @@ const AdminModal = ({
     await onSeedTournament();
     setActionLoading(false);
     setActionSuccess(`Qualifying locked! Top 32 Umas seeded into Round 1 of 32.`);
+  };
+  const handleChaosClick = async () => {
+    if (!window.confirm("Launch Chaos Mode? This randomly seeds 32 Umas. Votes will weight odds, but winners are rolled.")) {
+      return;
+    }
+    setActionLoading(true);
+    setActionSuccess(null);
+    const result = await onChaosSeed?.();
+    setActionLoading(false);
+    if (result?.success !== false) {
+      setActionSuccess("Chaos Mode live — random seeds, weighted-random winners.");
+    }
   };
   const handleResetClick = async () => {
     if (window.confirm("Reset tournament state back to default?")) {
@@ -115,7 +128,10 @@ const AdminModal = ({
         /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between bg-slate-950 p-4 rounded-2xl border border-slate-800", children: [
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("span", { className: "text-[10px] font-extrabold text-amber-400 uppercase tracking-wider block", children: "Current Status" }),
-            /* @__PURE__ */ jsx("span", { className: "text-sm font-bold text-white uppercase", children: event?.stage || "Ready" })
+            /* @__PURE__ */ jsxs("span", { className: "text-sm font-bold text-white uppercase", children: [
+              event?.stage || "Ready",
+              event?.mode === "chaos" ? " · Chaos" : ""
+            ] })
           ] }),
           /* @__PURE__ */ jsx(
             "button",
@@ -184,6 +200,27 @@ const AdminModal = ({
                 children: [
                   /* @__PURE__ */ jsx(Sparkles, { className: "w-4 h-4 fill-white" }),
                   /* @__PURE__ */ jsx("span", { children: "Lock Qualifying & Launch 32 Bracket" })
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "p-4 rounded-2xl bg-violet-500/5 border border-violet-500/30 space-y-3", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsxs("h4", { className: "text-sm font-bold text-white flex items-center gap-2", children: [
+                /* @__PURE__ */ jsx(Dices, { className: "w-4 h-4 text-violet-400" }),
+                "Chaos Mode"
+              ] }),
+              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Randomly seeds 32 Umas into a bracket. Fan votes weight the odds, then each match rolls a winner from those odds." })
+            ] }),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: handleChaosClick,
+                disabled: actionLoading,
+                className: "w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2",
+                children: [
+                  /* @__PURE__ */ jsx(Dices, { className: "w-4 h-4" }),
+                  /* @__PURE__ */ jsx("span", { children: "Launch Chaos Mode Bracket" })
                 ]
               }
             )
