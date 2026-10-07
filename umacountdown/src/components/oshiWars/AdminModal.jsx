@@ -20,6 +20,7 @@ const AdminModal = ({
   const [qualifyingHours, setQualifyingHours] = useState(24);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
+  const [actionError, setActionError] = useState(null);
   if (!isOpen) return null;
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -34,6 +35,7 @@ const AdminModal = ({
   const handleStartQualifyingClick = async () => {
     setActionLoading(true);
     setActionSuccess(null);
+    setActionError(null);
     await onStartQualifying(qualifyingHours);
     setActionLoading(false);
     setActionSuccess(`24-Hour Qualifying Stage launched! Public ballot link is active.`);
@@ -41,6 +43,7 @@ const AdminModal = ({
   const handleSeedClick = async () => {
     setActionLoading(true);
     setActionSuccess(null);
+    setActionError(null);
     await onSeedTournament();
     setActionLoading(false);
     setActionSuccess(`Qualifying locked! Top 32 Umas seeded into Round 1 of 32.`);
@@ -48,16 +51,22 @@ const AdminModal = ({
   const handleChaosClick = async () => {
     setActionLoading(true);
     setActionSuccess(null);
+    setActionError(null);
     const result = await onChaosSeed?.();
     setActionLoading(false);
     if (result?.success) {
       setActionSuccess("Chaos Mode live — full roster randomly seeded, weighted-random winners.");
+    } else if (result?.error) {
+      setActionError(result.error);
+    } else {
+      setActionError("Failed to start Chaos Mode.");
     }
   };
   const handleResetClick = async () => {
     if (window.confirm("Reset tournament state back to default?")) {
       setActionLoading(true);
       setActionSuccess(null);
+      setActionError(null);
       await onResetEvent();
       setActionLoading(false);
       setActionSuccess(`Tournament reset successfully.`);
@@ -84,6 +93,10 @@ const AdminModal = ({
     actionSuccess && /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 p-3 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold", children: [
       /* @__PURE__ */ jsx(CheckCircle2, { className: "w-4 h-4 shrink-0" }),
       /* @__PURE__ */ jsx("span", { children: actionSuccess })
+    ] }),
+    actionError && /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 p-3 bg-rose-500/10 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold", children: [
+      /* @__PURE__ */ jsx(AlertCircle, { className: "w-4 h-4 shrink-0" }),
+      /* @__PURE__ */ jsx("span", { children: actionError })
     ] }),
     !isAdminLoggedIn ? /* @__PURE__ */ jsxs("form", { onSubmit: handleLoginSubmit, className: "space-y-4", children: [
       /* @__PURE__ */ jsxs("div", { className: "bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl text-xs text-slate-300 space-y-1", children: [
