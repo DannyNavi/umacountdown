@@ -110,12 +110,14 @@ export default function OshiWars() {
       });
       if (res.ok) {
         const data = await res.json();
+        if (!data?.token) {
+          console.error("Admin login succeeded without a token");
+          return false;
+        }
         setIsAdminLoggedIn(true);
         try {
           localStorage.setItem("oshi_admin_session", "true");
-          if (data.token) {
-            localStorage.setItem("oshi_admin_token", data.token);
-          }
+          localStorage.setItem("oshi_admin_token", data.token);
         } catch {
           /* private / blocked storage */
         }
@@ -215,15 +217,10 @@ export default function OshiWars() {
     try {
       const token = localStorage.getItem("oshi_admin_token");
       if (!token) {
-        alert("Admin login required to start Chaos Mode.");
-        return { success: false };
-      }
-      if (
-        !window.confirm(
-          "Launch Chaos Mode? Every Uma is randomly seeded (byes fill the bracket). Each round lasts 24 hours; votes weight odds, then winners are rolled."
-        )
-      ) {
-        return { success: false };
+        return {
+          success: false,
+          error: "Admin session missing a token — log out and log in again.",
+        };
       }
       const res = await fetch(`/api/events/${EVENT_ID}/chaos-seed`, {
         method: "POST",
@@ -238,17 +235,19 @@ export default function OshiWars() {
         setEvent(data);
         return { success: true };
       }
-      if (res.status === 401) {
-        handleAdminLogout();
-        alert("Admin session expired — log in again to start Chaos Mode.");
-      } else {
-        alert(data.error || "Failed to start Chaos Mode.");
-      }
-      return { success: false, error: data.error };
+      // Do not force-logout on failure — a 401/5xx here was kicking admins
+      // out of the panel whenever Chaos Mode failed to launch.
+      return {
+        success: false,
+        error:
+          data.error ||
+          (res.status === 401
+            ? "Admin auth rejected — try logging out and back in."
+            : `Failed to start Chaos Mode (${res.status}).`),
+      };
     } catch (err) {
       console.error("Error starting Chaos Mode:", err);
-      alert("Failed to start Chaos Mode.");
-      return { success: false };
+      return { success: false, error: "Failed to start Chaos Mode." };
     }
   };
 
