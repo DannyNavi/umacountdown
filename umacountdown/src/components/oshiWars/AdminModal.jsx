@@ -180,32 +180,11 @@ const AdminModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3", children: [
-            /* @__PURE__ */ jsxs("div", { children: [
-              /* @__PURE__ */ jsxs("h4", { className: "text-sm font-bold text-white flex items-center gap-2", children: [
-                /* @__PURE__ */ jsx(Sparkles, { className: "w-4 h-4 text-rose-400" }),
-                "2. Lock Qualifying & Seed 32 Bracket"
-              ] }),
-              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Ranks candidates by Top 5 ballot points, seeds Top 32, and launches 1v1 playoff matchups." })
-            ] }),
-            /* @__PURE__ */ jsxs(
-              "button",
-              {
-                onClick: handleSeedClick,
-                disabled: actionLoading,
-                className: "w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2",
-                children: [
-                  /* @__PURE__ */ jsx(Sparkles, { className: "w-4 h-4 fill-white" }),
-                  /* @__PURE__ */ jsx("span", { children: "Lock Qualifying & Launch 32 Bracket" })
-                ]
-              }
-            )
-          ] }),
           /* @__PURE__ */ jsxs("div", { className: "p-4 rounded-2xl bg-violet-500/5 border border-violet-500/30 space-y-3", children: [
             /* @__PURE__ */ jsxs("div", { children: [
               /* @__PURE__ */ jsxs("h4", { className: "text-sm font-bold text-white flex items-center gap-2", children: [
                 /* @__PURE__ */ jsx(Dices, { className: "w-4 h-4 text-violet-400" }),
-                "Chaos Mode"
+                "2. Chaos Mode"
               ] }),
               /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Randomly seeds every Uma (bye slots pad to the next power of two). Votes weight the odds; each round lasts 24 hours, then unfinished matchups auto-roll." })
             ] }),
@@ -218,6 +197,27 @@ const AdminModal = ({
                 children: [
                   /* @__PURE__ */ jsx(Dices, { className: "w-4 h-4" }),
                   /* @__PURE__ */ jsx("span", { children: "Launch Chaos Mode Bracket" })
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsxs("h4", { className: "text-sm font-bold text-white flex items-center gap-2", children: [
+                /* @__PURE__ */ jsx(Sparkles, { className: "w-4 h-4 text-rose-400" }),
+                "3. Lock Qualifying & Seed 32 Bracket"
+              ] }),
+              /* @__PURE__ */ jsx("p", { className: "text-xs text-slate-400 mt-0.5", children: "Ranks candidates by Top 5 ballot points, seeds Top 32, and launches 1v1 playoff matchups." })
+            ] }),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: handleSeedClick,
+                disabled: actionLoading,
+                className: "w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-2",
+                children: [
+                  /* @__PURE__ */ jsx(Sparkles, { className: "w-4 h-4 fill-white" }),
+                  /* @__PURE__ */ jsx("span", { children: "Lock Qualifying & Launch 32 Bracket" })
                 ]
               }
             )
