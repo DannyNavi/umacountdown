@@ -6,7 +6,6 @@ const AdminControlBar = ({
   onLogout,
   onStartQualifying,
   onSeedTournament,
-  onChaosSeed,
   onResetEvent
 }) => {
   const isChaos = event?.mode === "chaos";
@@ -34,17 +33,6 @@ const AdminControlBar = ({
           children: [
             /* @__PURE__ */ jsx(Sparkles, { className: "w-3.5 h-3.5 fill-white" }),
             /* @__PURE__ */ jsx("span", { children: "Lock & Seed 32 Bracket" })
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxs(
-        "button",
-        {
-          onClick: () => onChaosSeed?.(),
-          className: "px-3 py-1 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-[11px] transition-all flex items-center gap-1 shadow-sm active:scale-95",
-          children: [
-            /* @__PURE__ */ jsx(Dices, { className: "w-3.5 h-3.5" }),
-            /* @__PURE__ */ jsx("span", { children: "Start Chaos Mode (All)" })
           ]
         }
       ),
