@@ -91,7 +91,7 @@ test("applyBannerDates leaves unmatched umapyoi IDs unchanged", () => {
   assert.deepEqual(applyBannerDates(banner, dateMap), banner);
 });
 
-test("applyBannerDatesToList remaps only matching banners", () => {
+test("applyBannerDatesToList keeps only uma.moe timeline banners", () => {
   const dateMap = buildBannerDateMap({
     events: [
       {
@@ -111,7 +111,16 @@ test("applyBannerDatesToList remaps only matching banners", () => {
     dateMap
   );
 
+  assert.equal(banners.length, 1);
+  assert.equal(banners[0].id, 30122);
   assert.equal(banners[0].start_date, 1788300000);
   assert.equal(banners[0].is_global_mapped, true);
-  assert.deepEqual(banners[1], { id: 20001, start_date: 3, end_date: 4 });
+});
+
+test("applyBannerDatesToList returns no banners without a timeline map", () => {
+  assert.deepEqual(
+    applyBannerDatesToList([{ id: 30122, start_date: 1 }], new Map()),
+    []
+  );
+  assert.deepEqual(applyBannerDatesToList([{ id: 30122, start_date: 1 }], null), []);
 });

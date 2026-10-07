@@ -88,6 +88,9 @@ app.get("/api/v1/gacha", async (c) => {
   try {
     const data = await getBannerList();
     const dateMap = await getBannerDateMap();
+    if (!dateMap.size) {
+      return c.json({ error: "uma.moe timeline unavailable" }, 503);
+    }
     const globalizedBanners = applyBannerDatesToList(data, dateMap).sort(
       (a, b) => a.start_date - b.start_date
     );

@@ -44,5 +44,8 @@ export function applyBannerDates(banner, dateMap) {
 
 export function applyBannerDatesToList(banners, dateMap) {
   if (!Array.isArray(banners)) return banners;
-  return banners.map((banner) => applyBannerDates(banner, dateMap));
+  if (!dateMap || dateMap.size === 0) return [];
+  return banners
+    .filter((banner) => dateMap.has(Number(banner.id)))
+    .map((banner) => applyBannerDates(banner, dateMap));
 }
