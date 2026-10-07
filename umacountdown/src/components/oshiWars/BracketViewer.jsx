@@ -30,6 +30,7 @@ export function BracketViewer({
       <div className="ow-panel ow-bracket-header">
         <h2>Tournament Bracket</h2>
         <p className="ow-muted">
+          Bottom-up bracket — early rounds at the bottom, finals at the top.
           Click any matchup to open the Versus Arena and cast a vote.
         </p>
       </div>
