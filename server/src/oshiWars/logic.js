@@ -209,6 +209,34 @@ export function createDefaultEvent() {
   };
 }
 
+/**
+ * Wipe prior-tournament ballots / qualifying tallies and open a fresh
+ * qualifying window. Used by "Start 24h Qualifying" so last cycle's votes
+ * cannot block new ballots.
+ */
+export function beginQualifyingRound(event, durationHours = 24) {
+  const hours = Number(durationHours) || 24;
+  const endTime = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+
+  event.stage = "qualifying";
+  event.qualifyingEndTime = endTime;
+  event.matchups = [];
+  event.ballots = [];
+  event.currentRound = 1;
+  event.winnerId = null;
+
+  (event.characters || []).forEach((ch) => {
+    ch.qualifyingScore = 0;
+    ch.qualifyingVotesCount = 0;
+    ch.firstPlaceVotes = 0;
+    ch.averageRating = 0;
+    ch.seed = undefined;
+    ch.isEliminated = false;
+  });
+
+  return event;
+}
+
 export function normalizeStoreForDo(store) {
   const eventsStore = store && typeof store === "object" ? { ...store } : {};
   const defaultEvt = eventsStore["oshi-wars-2026"];

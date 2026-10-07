@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { applyBannerDates, applyBannerDatesToList, buildBannerDateMap } from "./bannerDates.js";
 import {
   applyManualBracket,
+  beginQualifyingRound,
   createDefaultEvent,
   generateBracketTree,
   generateMatchupCommentary,
@@ -481,22 +482,31 @@ app.get("/api/visits", async (c) => {
 });
 
 app.post("/api/events/:id/start-qualifying", async (c) => {
-  const eventsStore = await loadEventsStore(c.env);
-  const event = eventsStore[c.req.param("id")];
-  if (!event) return c.json({ error: "Event not found" }, 404);
+  const denied = requireOshiAdmin(c);
+  if (denied) return denied;
 
   const body = await c.req.json().catch(() => ({}));
   const hours = Number(body.durationHours) || 24;
-  const endTime = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+  const eventId = c.req.param("id");
 
-  event.stage = "qualifying";
-  event.qualifyingEndTime = endTime;
-  event.matchups = [];
-  event.currentRound = 1;
-  event.winnerId = null;
+  try {
+    const result = await updateEventsStore(c.env, (eventsStore) => {
+      const event = eventsStore[eventId];
+      if (!event) return { ok: false, status: 404, error: "Event not found" };
+      beginQualifyingRound(event, hours);
+      return { ok: true, payload: event };
+    });
 
-  await saveEventsStore(c.env, eventsStore);
-  return c.json(event);
+    if (!result.ok) {
+      return c.json({ error: result.error }, result.status || 400);
+    }
+    return c.json(result.payload);
+  } catch (err) {
+    return c.json(
+      { error: err.message || "Failed to start qualifying" },
+      409
+    );
+  }
 });
 
 app.post("/api/events/:id/characters", async (c) => {
