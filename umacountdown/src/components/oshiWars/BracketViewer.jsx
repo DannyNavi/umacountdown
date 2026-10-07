@@ -170,25 +170,29 @@ export function BracketViewer({
           onVoteMatchup={async (mId, cId, voterId) => {
             const result = await onVoteMatchup(mId, cId, voterId);
             if (result?.success) {
-              setActiveMatchup((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      votes1:
-                        cId === prev.character1Id
-                          ? prev.votes1 + 1
-                          : prev.votes1,
-                      votes2:
-                        cId === prev.character2Id
-                          ? prev.votes2 + 1
-                          : prev.votes2,
-                      voters: [
-                        ...(Array.isArray(prev.voters) ? prev.voters : []),
-                        voterId,
-                      ],
-                    }
-                  : null
-              );
+              if (result.matchup) {
+                setActiveMatchup(result.matchup);
+              } else {
+                setActiveMatchup((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        votes1:
+                          cId === prev.character1Id
+                            ? prev.votes1 + 1
+                            : prev.votes1,
+                        votes2:
+                          cId === prev.character2Id
+                            ? prev.votes2 + 1
+                            : prev.votes2,
+                        voters: [
+                          ...(Array.isArray(prev.voters) ? prev.voters : []),
+                          voterId,
+                        ],
+                      }
+                    : null
+                );
+              }
             }
             return result;
           }}
