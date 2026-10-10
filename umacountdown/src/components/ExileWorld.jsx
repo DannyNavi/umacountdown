@@ -136,7 +136,7 @@ export default function ExileWorld() {
       setSelectedId(data.pin.id);
       setFocusPoint({ lat: data.pin.lat, lng: data.pin.lng });
       setFocusToken((token) => token + 1);
-      setStatusMessage(`${displayName(data.pin)} is marked in ${data.pin.place}.`);
+      setStatusMessage(`${displayName(data.pin)} is marked on the map.`);
     } catch (caught) {
       setPins((current) => current.filter((item) => item.id !== optimistic.id));
       setSelectedId(null);
@@ -163,9 +163,7 @@ export default function ExileWorld() {
       />
       {selected && !draft ? (
         <div className="ExileWorld-card">
-          <p className="ExileWorld-cardPlace">{selected.place}</p>
-          <p className={selected.name ? "" : "is-muted"}>{displayName(selected)}</p>
-          {selected.note ? <p className="is-muted">{selected.note}</p> : null}
+          <p className="ExileWorld-cardPlace">{displayName(selected)}</p>
         </div>
       ) : null}
       {draft ? (

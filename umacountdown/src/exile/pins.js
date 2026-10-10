@@ -5,27 +5,6 @@ export const PIN_LIMITS = {
   maxPins: 500,
 };
 
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-export function formatWhen(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
-}
-
 export function displayName(pin) {
   return pin.name.trim() ? pin.name : "Anonymous";
 }
@@ -53,8 +32,6 @@ export function parsePinInput(body) {
   const name = clean(body.name, PIN_LIMITS.name);
   const place = clean(body.place, PIN_LIMITS.place);
   const note = clean(body.note, PIN_LIMITS.note);
-
-  if (!place) return { ok: false, error: "Name the place you live." };
 
   if (typeof body.lat !== "number" || typeof body.lng !== "number") {
     return { ok: false, error: "Choose a point on the map." };

@@ -9,11 +9,14 @@ import {
   resetExilePinsMemory,
 } from "./exilePins.js";
 
-test("parsePinInput requires a place and a map point", () => {
+test("parsePinInput requires a map point and allows an empty name", () => {
   assert.equal(parsePinInput(null).ok, false);
-  assert.equal(parsePinInput({ lat: 10, lng: 10 }).error, "Name the place you live.");
-  assert.equal(parsePinInput({ place: "Lisbon" }).error, "Choose a point on the map.");
-  assert.equal(parsePinInput({ place: "Lisbon", lat: 200, lng: 0 }).error, "That point is not on the map.");
+  assert.equal(parsePinInput({ name: "Ada" }).error, "Choose a point on the map.");
+  assert.equal(parsePinInput({ name: "Ada", lat: 200, lng: 0 }).error, "That point is not on the map.");
+  const parsed = parsePinInput({ lat: 10, lng: 10 });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.value.name, "");
+  assert.equal(parsed.value.place, "");
 });
 
 test("parsePinInput trims fields and rounds coordinates", () => {

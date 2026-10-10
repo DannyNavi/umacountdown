@@ -201,7 +201,7 @@ export default function WorldMap({
                 className="ExileWorld-pin"
                 role="button"
                 tabIndex={0}
-                aria-label={`${displayName(pin)} in ${pin.place}`}
+                aria-label={displayName(pin)}
                 aria-pressed={selected}
                 transform={`translate(${point[0]} ${point[1]}) scale(${1 / transform.k})`}
                 onPointerDown={(event) => event.stopPropagation()}

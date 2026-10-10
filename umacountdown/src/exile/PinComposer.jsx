@@ -3,22 +3,16 @@ import { PIN_LIMITS } from "./pins.js";
 
 export default function PinComposer({ saving, error, onCancel, onSubmit }) {
   const [name, setName] = useState("");
-  const [place, setPlace] = useState("");
-  const [note, setNote] = useState("");
-  const [attempted, setAttempted] = useState(false);
 
   function handleSubmit(event) {
     event.preventDefault();
-    setAttempted(true);
-    onSubmit({ name, place, note });
+    onSubmit({ name, place: "", note: "" });
   }
-
-  const placeInvalid = attempted && place.trim().length === 0;
 
   return (
     <form className="ExileWorld-composer" onSubmit={handleSubmit}>
       <label>
-        Your name, optional
+        Name
         <input
           name="name"
           value={name}
@@ -27,34 +21,7 @@ export default function PinComposer({ saving, error, onCancel, onSubmit }) {
           autoComplete="off"
           placeholder="Leave blank to stay anonymous"
           disabled={saving}
-        />
-      </label>
-
-      <label>
-        Place you live
-        <input
-          name="place"
-          value={place}
-          onChange={(event) => setPlace(event.target.value)}
-          maxLength={PIN_LIMITS.place}
-          autoComplete="off"
-          placeholder="Lisbon"
-          disabled={saving}
-          aria-invalid={placeInvalid}
-          aria-required
           autoFocus
-        />
-      </label>
-
-      <label>
-        A line about it, optional
-        <textarea
-          name="note"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          maxLength={PIN_LIMITS.note}
-          placeholder="A room above the tram line."
-          disabled={saving}
         />
       </label>
 

@@ -32,8 +32,6 @@ export function parsePinInput(body) {
   const place = clean(body.place, PIN_LIMITS.place);
   const note = clean(body.note, PIN_LIMITS.note);
 
-  if (!place) return { ok: false, error: "Name the place you live." };
-
   const lat = Number(body.lat);
   const lng = Number(body.lng);
 
