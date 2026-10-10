@@ -16,7 +16,7 @@
 }
 
 .ExileWorld-leaflet,
-.ExileWorld-leaflet.leaflet-container {
+.ExileWorld-leaflet.maplibregl-map {
   width: 100%;
   height: 100%;
   cursor: crosshair;
@@ -28,7 +28,7 @@
   color: #e39a4d;
 }
 
-.ExileWorld-leaflet .leaflet-control-attribution {
+.ExileWorld-leaflet .maplibregl-ctrl-attrib {
   background: rgba(16, 20, 18, 0.72);
   color: #aea698;
   font-size: 10px;
