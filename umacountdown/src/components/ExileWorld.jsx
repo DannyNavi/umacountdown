@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PinComposer from "../exile/PinComposer.jsx";
-import Roster from "../exile/Roster.jsx";
 import WorldMap from "../exile/WorldMap.jsx";
 import { displayName, isPin, isPinList, parsePinInput } from "../exile/pins.js";
 import "./ExileWorld.css";
@@ -11,7 +10,6 @@ export default function ExileWorld() {
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [syncError, setSyncError] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [focusToken, setFocusToken] = useState(0);
   const [focusPoint, setFocusPoint] = useState(null);
@@ -42,9 +40,8 @@ export default function ExileWorld() {
         );
         return [...pending, ...serverPins];
       });
-      setSyncError(false);
     } catch {
-      setSyncError(true);
+      // Keep the last map if a refresh fails.
     } finally {
       syncingRef.current = false;
     }
@@ -64,13 +61,6 @@ export default function ExileWorld() {
       window.removeEventListener("focus", onFocus);
     };
   }, [syncPins]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    document.getElementById(`home-${selectedId}`)?.scrollIntoView({
-      block: "nearest",
-    });
-  }, [selectedId]);
 
   useEffect(() => {
     function onKeyDown(event) {
@@ -159,66 +149,41 @@ export default function ExileWorld() {
 
   return (
     <div className="ExileWorld-Container">
-      <div className="ExileWorld-shell">
-        <header className="ExileWorld-head">
-          <div>
-            <p className="ExileWorld-kicker">Shared atlas</p>
-            <h1>Exile World</h1>
-          </div>
-          <p className="ExileWorld-lead">
-            Mark where you live. Everyone who opens this page sees the same pins.
-          </p>
-        </header>
-
-        <p className="sr-only" aria-live="polite">
-          {statusMessage}
-        </p>
-
-        <div className="ExileWorld-body">
-          <div className="ExileWorld-stage">
-            <WorldMap
-              pins={pins}
-              selectedId={selectedId}
-              draft={draft}
-              focusToken={focusToken}
-              focusPoint={focusPoint}
-              onPick={choosePoint}
-              onSelect={selectPin}
-            />
-            {selected && !draft ? (
-              <div className="ExileWorld-card">
-                <p className="ExileWorld-cardPlace">{selected.place}</p>
-                <p className={selected.name ? "" : "is-muted"}>{displayName(selected)}</p>
-                {selected.note ? <p className="is-muted">{selected.note}</p> : null}
-              </div>
-            ) : null}
-            {draft ? (
-              <div className="ExileWorld-composerWrap">
-                <PinComposer
-                  lat={draft.lat}
-                  lng={draft.lng}
-                  saving={saving}
-                  error={error}
-                  onCancel={() => {
-                    if (saving) return;
-                    setDraft(null);
-                    setError(null);
-                  }}
-                  onSubmit={savePin}
-                />
-              </div>
-            ) : null}
-          </div>
-          <aside className={`ExileWorld-aside${draft ? " is-drafting" : ""}`}>
-            <Roster
-              pins={pins}
-              selectedId={selectedId}
-              syncError={syncError}
-              onSelect={selectPin}
-            />
-          </aside>
+      <p className="sr-only" aria-live="polite">
+        {statusMessage}
+      </p>
+      <WorldMap
+        pins={pins}
+        selectedId={selectedId}
+        draft={draft}
+        focusToken={focusToken}
+        focusPoint={focusPoint}
+        onPick={choosePoint}
+        onSelect={selectPin}
+      />
+      {selected && !draft ? (
+        <div className="ExileWorld-card">
+          <p className="ExileWorld-cardPlace">{selected.place}</p>
+          <p className={selected.name ? "" : "is-muted"}>{displayName(selected)}</p>
+          {selected.note ? <p className="is-muted">{selected.note}</p> : null}
         </div>
-      </div>
+      ) : null}
+      {draft ? (
+        <div className="ExileWorld-composerWrap">
+          <PinComposer
+            lat={draft.lat}
+            lng={draft.lng}
+            saving={saving}
+            error={error}
+            onCancel={() => {
+              if (saving) return;
+              setDraft(null);
+              setError(null);
+            }}
+            onSubmit={savePin}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
