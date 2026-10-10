@@ -20,12 +20,6 @@ const MONTHS = [
   "Dec",
 ];
 
-export function formatCoord(lat, lng) {
-  const latHemisphere = lat >= 0 ? "N" : "S";
-  const lngHemisphere = lng >= 0 ? "E" : "W";
-  return `${Math.abs(lat).toFixed(2)}° ${latHemisphere}, ${Math.abs(lng).toFixed(2)}° ${lngHemisphere}`;
-}
-
 export function formatWhen(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { formatCoord, PIN_LIMITS } from "./pins.js";
+import { PIN_LIMITS } from "./pins.js";
 
-export default function PinComposer({ lat, lng, saving, error, onCancel, onSubmit }) {
+export default function PinComposer({ saving, error, onCancel, onSubmit }) {
   const [name, setName] = useState("");
   const [place, setPlace] = useState("");
   const [note, setNote] = useState("");
@@ -17,11 +17,6 @@ export default function PinComposer({ lat, lng, saving, error, onCancel, onSubmi
 
   return (
     <form className="ExileWorld-composer" onSubmit={handleSubmit}>
-      <div>
-        <h2>Mark your home</h2>
-        <p className="ExileWorld-coord">{formatCoord(lat, lng)}</p>
-      </div>
-
       <label>
         Your name, optional
         <input

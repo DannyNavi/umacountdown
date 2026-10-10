@@ -171,8 +171,6 @@ export default function ExileWorld() {
       {draft ? (
         <div className="ExileWorld-composerWrap">
           <PinComposer
-            lat={draft.lat}
-            lng={draft.lng}
             saving={saving}
             error={error}
             onCancel={() => {
