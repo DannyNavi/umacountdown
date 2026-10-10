@@ -1,0 +1,108 @@
+name: Deploy Exile World
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "exileworld/**"
+      - ".github/workflows/deploy-exile-world.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-exile-world
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Exile World Worker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.18"
+          cache: npm
+          cache-dependency-path: exileworld/package-lock.json
+
+      - name: Install dependencies
+        working-directory: exileworld
+        run: npm ci
+
+      - name: Ensure D1 database and configure binding
+        working-directory: exileworld
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json, os, re, urllib.request
+          from pathlib import Path
+
+          token = os.environ["CLOUDFLARE_API_TOKEN"]
+          account = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+          name = "exile-world"
+
+          def api(method, path, body=None):
+              req = urllib.request.Request(
+                  f"https://api.cloudflare.com/client/v4{path}",
+                  data=None if body is None else json.dumps(body).encode(),
+                  method=method,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(req) as res:
+                  data = json.load(res)
+              if not data.get("success"):
+                  raise SystemExit(f"{method} {path} failed: {data}")
+              return data
+
+          listed = api("GET", f"/accounts/{account}/d1/database")
+          db_id = next(
+              (row["uuid"] for row in listed.get("result") or [] if row.get("name") == name),
+              None,
+          )
+          if not db_id:
+              created = api("POST", f"/accounts/{account}/d1/database", {"name": name})
+              db_id = created["result"]["uuid"]
+              print(f"Created D1 database {name}={db_id}")
+          else:
+              print(f"Using existing D1 database {name}={db_id}")
+
+          path = Path("cloudflare.config.ts")
+          text = path.read_text()
+          replacement = f'DB: bindings.d1({{ name: "exile-world", id: "{db_id}" }}),'
+          text2, n = re.subn(
+              r'DB: bindings\.d1\(\{\s*name:\s*"exile-world"(?:,\s*id:\s*"[^"]*")?\s*\}\),',
+              replacement,
+              text,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit("could not update cloudflare.config.ts DB binding")
+          path.write_text(text2)
+          print(path.read_text())
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"DB_ID={db_id}\n")
+          PY
+
+      - name: Apply D1 migrations
+        working-directory: exileworld
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx cf d1 migrations apply "$DB_ID" --dir migrations
+
+      - name: Deploy Worker
+        working-directory: exileworld
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy

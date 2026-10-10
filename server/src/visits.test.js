@@ -15,6 +15,8 @@ test("normalizeVisitPath accepts known routes and strips query/hash", () => {
   assert.equal(normalizeVisitPath("/parent/abc123"), "/parent");
   assert.equal(normalizeVisitPath("club"), "/club");
   assert.equal(normalizeVisitPath("/parent/"), "/parent");
+  assert.equal(normalizeVisitPath("/exile"), "/exile");
+  assert.equal(normalizeVisitPath("/exile?x=1"), "/exile");
 });
 
 test("normalizeVisitPath rejects unknown or empty paths", () => {

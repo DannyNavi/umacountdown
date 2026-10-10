@@ -10,6 +10,7 @@ import Ozy from "./components/Ozy";
 import Shaz from "./components/Shaz";
 import Club from "./components/Club";
 import Parent, { ParentIdRedirect } from "./components/Parent";
+import ExileWorld from "./components/ExileWorld";
 import VisitTracker from "./components/VisitTracker";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="club" element={<Club/>}/>
           <Route path="parent" element={<Parent/>}/>
           <Route path="parent/:id" element={<ParentIdRedirect/>}/>
+          <Route path="exile" element={<ExileWorld/>}/>
         </Routes>
       </BrowserRouter>
     </div>

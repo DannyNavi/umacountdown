@@ -12,6 +12,7 @@ const KNOWN_ROOTS = new Set([
   "/shaz",
   "/club",
   "/parent",
+  "/exile",
 ]);
 
 function emptyStats() {

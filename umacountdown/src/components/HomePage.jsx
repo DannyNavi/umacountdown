@@ -1,5 +1,5 @@
 import { Link } from "react-router"
-import { Clock, Camera } from "lucide-react"
+import { Clock, Camera, Globe2 } from "lucide-react"
 
 import "./HomePage.css"
 
@@ -45,6 +45,13 @@ export default function HomePage(){
                     <h2>Parent Share</h2>
                     <Link to="/parent" aria-label="Parent Share">
                         <Camera />
+                    </Link>
+                </div>
+
+                <div className="LinkCard">
+                    <h2>Exile World</h2>
+                    <Link to="/exile" aria-label="Exile World shared atlas">
+                        <Globe2 />
                     </Link>
                 </div>
 
