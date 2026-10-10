@@ -34,8 +34,7 @@
   color: #e39a4d;
 }
 
-.ExileWorld-head h1,
-.ExileWorld-fallback h1 {
+.ExileWorld-head h1 {
   margin: 0.15rem 0 0;
   font-size: clamp(1.8rem, 4vw, 2.4rem);
   line-height: 1;
