@@ -6,6 +6,7 @@ import {
   isPin,
   parsePinInput,
   readPins,
+  removePin,
   resetExilePinsMemory,
 } from "./exilePins.js";
 
@@ -75,4 +76,26 @@ test("addPin refuses a full atlas", async () => {
   await assert.rejects(() => addPin(env, { name: "", place: "Lisbon", note: "", lat: 1, lng: 1 }), {
     message: "The atlas is full.",
   });
+});
+
+test("removePin deletes a stored pin and 404s when it is gone", async () => {
+  resetExilePinsMemory();
+  const kept = await addPin(
+    {},
+    { name: "Kept", place: "", note: "", lat: 1, lng: 1 }
+  );
+  const gone = await addPin(
+    {},
+    { name: "Gone", place: "", note: "", lat: 2, lng: 2 }
+  );
+
+  const removed = await removePin({}, gone.id);
+  assert.equal(removed.id, gone.id);
+  assert.deepEqual(
+    (await readPins({})).map((pin) => pin.id),
+    [kept.id]
+  );
+
+  await assert.rejects(() => removePin({}, gone.id), { message: "That pin could not be found." });
+  await assert.rejects(() => removePin({}, ""), { message: "That pin could not be found." });
 });

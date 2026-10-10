@@ -122,3 +122,22 @@ export async function addPin(env, input) {
   await savePins(env, [pin, ...pins]);
   return pin;
 }
+
+export async function removePin(env, id) {
+  if (typeof id !== "string" || !id) {
+    const error = new Error("That pin could not be found.");
+    error.code = "NOT_FOUND";
+    throw error;
+  }
+
+  const pins = await loadPins(env);
+  const pin = pins.find((item) => item.id === id);
+  if (!pin) {
+    const error = new Error("That pin could not be found.");
+    error.code = "NOT_FOUND";
+    throw error;
+  }
+
+  await savePins(env, pins.filter((item) => item.id !== id));
+  return pin;
+}

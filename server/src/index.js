@@ -28,7 +28,7 @@ import {
   practiceCacheTtlSeconds,
 } from "./partnerLookup.js";
 import { getVisitStats, recordVisit } from "./visits.js";
-import { addPin, parsePinInput, readPins } from "./exilePins.js";
+import { addPin, parsePinInput, readPins, removePin } from "./exilePins.js";
 export { OshiWarsStore } from "./oshiWars/OshiWarsStore.js";
 
 const app = new Hono();
@@ -533,6 +533,18 @@ app.post("/api/v4/exile/pins", async (c) => {
       );
     }
     return c.json({ error: "The pin could not be saved." }, 500);
+  }
+});
+
+app.delete("/api/v4/exile/pins/:id", async (c) => {
+  try {
+    const pin = await removePin(c.env, c.req.param("id"));
+    return c.json({ pin }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error?.code === "NOT_FOUND") {
+      return c.json({ error: "That pin could not be found." }, 404);
+    }
+    return c.json({ error: "The pin could not be removed." }, 500);
   }
 });
 

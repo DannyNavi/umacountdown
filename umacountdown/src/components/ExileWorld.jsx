@@ -14,6 +14,7 @@ export default function ExileWorld() {
   const [focusToken, setFocusToken] = useState(0);
   const [focusPoint, setFocusPoint] = useState(null);
   const syncingRef = useRef(false);
+  const removedIdsRef = useRef(new Set());
   const selected = pins.find((pin) => pin.id === selectedId) ?? null;
 
   const syncPins = useCallback(async () => {
@@ -26,11 +27,18 @@ export default function ExileWorld() {
       const serverPins = isPinList(data?.pins) ? data.pins : null;
       if (!serverPins) throw new Error("sync failed");
 
+      const visible = serverPins.filter((pin) => !removedIdsRef.current.has(pin.id));
+      for (const id of [...removedIdsRef.current]) {
+        if (!serverPins.some((pin) => pin.id === id)) {
+          removedIdsRef.current.delete(id);
+        }
+      }
+
       setPins((current) => {
         const pending = current.filter(
           (pin) =>
             pin.id.startsWith("pending-") &&
-            !serverPins.some(
+            !visible.some(
               (saved) =>
                 saved.name === pin.name &&
                 saved.place === pin.place &&
@@ -38,7 +46,7 @@ export default function ExileWorld() {
                 Math.abs(saved.lng - pin.lng) < 0.0002
             )
         );
-        return [...pending, ...serverPins];
+        return [...pending, ...visible];
       });
     } catch {
       // Keep the last map if a refresh fails.
@@ -147,6 +155,46 @@ export default function ExileWorld() {
     }
   }
 
+  async function removeSelectedPin() {
+    if (!selected || saving) return;
+
+    const pin = selected;
+    if (pin.id.startsWith("pending-")) {
+      setPins((current) => current.filter((item) => item.id !== pin.id));
+      setSelectedId(null);
+      setError(null);
+      setStatusMessage(`${displayName(pin)} was removed.`);
+      return;
+    }
+
+    removedIdsRef.current.add(pin.id);
+    setSaving(true);
+    setError(null);
+    setPins((current) => current.filter((item) => item.id !== pin.id));
+    setSelectedId(null);
+
+    try {
+      const response = await fetch(`/api/v4/exile/pins/${encodeURIComponent(pin.id)}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok && response.status !== 404) {
+        throw new Error(data?.error || "The pin could not be removed.");
+      }
+      setStatusMessage(`${displayName(pin)} was removed.`);
+    } catch (caught) {
+      removedIdsRef.current.delete(pin.id);
+      setPins((current) =>
+        current.some((item) => item.id === pin.id) ? current : [pin, ...current]
+      );
+      setSelectedId(pin.id);
+      setError(caught instanceof Error ? caught.message : "The pin could not be removed.");
+      setStatusMessage("The pin could not be removed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="ExileWorld-Container">
       <p className="sr-only" aria-live="polite">
@@ -164,6 +212,19 @@ export default function ExileWorld() {
       {selected && !draft ? (
         <div className="ExileWorld-card">
           <p className="ExileWorld-cardPlace">{displayName(selected)}</p>
+          {error ? (
+            <p role="alert" className="ExileWorld-formError">
+              {error}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="ExileWorld-remove"
+            onClick={removeSelectedPin}
+            disabled={saving}
+          >
+            {saving ? "Removing…" : "Remove"}
+          </button>
         </div>
       ) : null}
       {draft ? (
