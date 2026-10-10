@@ -6,7 +6,7 @@ export default defineConfig({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-10-10",
     compatibilityFlags: ["nodejs_compat"],
-    assets: { notFoundHandling: "none" },
+    assets: { notFoundHandling: "single-page-application" },
     env: {
       ASSETS: bindings.assets(),
       // Create the database with `cf d1 create --name exile-world`, then set `id`

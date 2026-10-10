@@ -13,8 +13,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value:
-              "frame-ancestors 'self' https://umacountdown.nguyen-danny142.workers.dev https://*.nguyen-danny142.workers.dev",
+            value: "frame-ancestors *",
           },
         ],
       },

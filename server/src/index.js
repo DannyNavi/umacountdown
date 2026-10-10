@@ -28,6 +28,7 @@ import {
   practiceCacheTtlSeconds,
 } from "./partnerLookup.js";
 import { getVisitStats, recordVisit } from "./visits.js";
+import { addPin, parsePinInput, readPins } from "./exilePins.js";
 export { OshiWarsStore } from "./oshiWars/OshiWarsStore.js";
 
 const app = new Hono();
@@ -503,6 +504,36 @@ app.get("/api/visits", async (c) => {
   if (denied) return denied;
   const stats = await getVisitStats(c.env);
   return c.json(stats);
+});
+
+app.get("/api/v4/exile/pins", async (c) => {
+  try {
+    const pins = await readPins(c.env);
+    return c.json({ pins }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return c.json({ error: "The atlas could not be read." }, 500);
+  }
+});
+
+app.post("/api/v4/exile/pins", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = parsePinInput(body);
+  if (!parsed.ok) {
+    return c.json({ error: parsed.error }, 400);
+  }
+
+  try {
+    const pin = await addPin(c.env, parsed.value);
+    return c.json({ pin }, 201);
+  } catch (error) {
+    if (error?.code === "ATLAS_FULL") {
+      return c.json(
+        { error: "The atlas is full for now. Five hundred homes are already marked." },
+        409
+      );
+    }
+    return c.json({ error: "The pin could not be saved." }, 500);
+  }
 });
 
 app.post("/api/events/:id/start-qualifying", async (c) => {
