@@ -1,9 +1,13 @@
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import { Map as MapLibreMap, Marker } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
+import maplibreWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-
 import { displayName, homeCount } from "./pins.js";
+
+// Vite emits this worker as a same-origin asset. MapLibre's default
+// sibling URL (./maplibre-gl-worker.mjs next to the bundle) does not exist.
+setWorkerUrl(maplibreWorker);
 
 const WORLD_CENTER = [0, 20];
 const WORLD_ZOOM = 1.6;
