@@ -37,8 +37,6 @@ function isRaceSparkFactor(factorId, factorById = new Map()) {
 
 const FACTORS_CACHE_KEY = "uma-parent-factors-v1";
 const FACTORS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const PRACTICE_CACHE_PREFIX = "uma-practice:v8:";
-const PRACTICE_CACHE_TTL_MS = 5 * 60 * 1000;
 const HIDE_RACE_SPARKS_KEY = "uma-parent-hide-race-sparks";
 const MOBILE_ROW_KEY = "uma-parent-mobile-row";
 const ID_KIND_KEY = "uma-parent-id-kind";
@@ -124,33 +122,6 @@ function writeCachedFactors(items) {
     localStorage.setItem(
       FACTORS_CACHE_KEY,
       JSON.stringify({ items, savedAt: Date.now() })
-    );
-  } catch {
-    // ignore quota / private mode
-  }
-}
-
-function practiceCacheKey(id) {
-  return `${PRACTICE_CACHE_PREFIX}${id}`;
-}
-
-function readCachedPractice(id) {
-  try {
-    const parsed = JSON.parse(sessionStorage.getItem(practiceCacheKey(id)) || "null");
-    if (!parsed?.payload || Date.now() - parsed.savedAt > PRACTICE_CACHE_TTL_MS) {
-      return null;
-    }
-    return parsed.payload;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedPractice(id, payload) {
-  try {
-    sessionStorage.setItem(
-      practiceCacheKey(id),
-      JSON.stringify({ payload, savedAt: Date.now() })
     );
   } catch {
     // ignore quota / private mode
@@ -612,11 +583,9 @@ export default function Parent() {
       return;
     }
 
-    // Use short TTL caches for both kinds. Always bypassing cache for Partner
-    // IDs forced a fresh uma.moe scrape on every page view (~seconds–tens of
-    // seconds). Ryan/Agnes staleness is handled by clear+client-retry, not by
-    // disabling cache. Retries still pass refresh=1.
-    const cached = readCachedPractice(lookupId);
+    // Never reuse sessionStorage / edge Cache API for lookups. Brave (and
+    // Opera GX) were sticky enough that Partner shares showed a prior uma,
+    // and refresh=1 on every request is the reliable fix.
     const controller = new AbortController();
     let active = true;
     const requestedId = lookupId;
@@ -624,14 +593,12 @@ export default function Parent() {
     setError("");
     // Drop the previous result immediately so a slow prior fetch can't leave
     // another ID's character on screen (seen on Opera GX with rapid lookups).
-    setData(cached);
-    setLoading(!cached);
+    setData(null);
+    setLoading(true);
 
     async function loadPractice(attempt = 0) {
       const res = await fetch(
-        `/api/v4/practice?id=${encodeURIComponent(requestedId)}&type=${encodeURIComponent(requestedKind)}${
-          attempt > 0 ? "&refresh=1" : ""
-        }`,
+        `/api/v4/practice?id=${encodeURIComponent(requestedId)}&type=${encodeURIComponent(requestedKind)}&refresh=1`,
         {
           signal: controller.signal,
           cache: "no-store",
@@ -676,18 +643,10 @@ export default function Parent() {
       return body;
     }
 
-    // Session cache hit: show it immediately; still revalidate in background
-    // unless this is a Partner ID within TTL (share scrape is expensive).
-    if (cached && idKind === ID_KIND_PARTNER) {
-      setLoading(false);
-      return () => controller.abort();
-    }
-
     loadPractice()
       .then((body) => {
         if (!active || controller.signal.aborted) return;
         setData(body);
-        writeCachedPractice(requestedId, body);
         const inheritance = pickInheritance(body);
         if (!inheritance && !body.error) {
           setError(
@@ -701,9 +660,7 @@ export default function Parent() {
       })
       .catch((err) => {
         if (!active || err.name === "AbortError") return;
-        if (!cached) {
-          setError(err.message || "Failed to look up practice partner");
-        }
+        setError(err.message || "Failed to look up practice partner");
       })
       .finally(() => {
         if (active && !controller.signal.aborted) setLoading(false);
