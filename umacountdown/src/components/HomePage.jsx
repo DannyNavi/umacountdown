@@ -1,25 +1,7 @@
 import { Link } from "react-router"
-import { Clock, Camera, Globe2 } from "lucide-react"
+import { Clock, Camera } from "lucide-react"
 
 import "./HomePage.css"
-
-function TournamentBracketIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <path d="M3 5h6M9 5v4H3M9 7h5" />
-            <path d="M3 15h6M9 15v4H3M9 17h5" />
-            <path d="M14 7v10M14 12h7" />
-        </svg>
-    )
-}
 
 export default function HomePage(){
     return(
@@ -35,23 +17,9 @@ export default function HomePage(){
                 </div>
 
                 <div className="LinkCard">
-                    <h2>Oshi Wars</h2>
-                    <Link to="/oshiwars" aria-label="Oshi Wars">
-                        <TournamentBracketIcon />
-                    </Link>
-                </div>
-
-                <div className="LinkCard">
                     <h2>Parent Share</h2>
                     <Link to="/parent" aria-label="Parent Share">
                         <Camera />
-                    </Link>
-                </div>
-
-                <div className="LinkCard">
-                    <h2>Exile World</h2>
-                    <Link to="/exile" aria-label="Exile World shared atlas">
-                        <Globe2 />
                     </Link>
                 </div>
 
