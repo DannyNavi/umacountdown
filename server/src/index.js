@@ -220,7 +220,7 @@ app.get("/api/v4/circles", async (c) => {
 });
 
 const UMA_RESOURCE_ORIGIN = "https://uma.moe/resources/current";
-const UMA_RESOURCE_NAMES = new Set(["factors", "skills", "banner_timeline"]);
+const UMA_RESOURCE_NAMES = new Set(["factors", "skills", "banner_timeline", "affinity", "race_to_saddle_mapping"]);
 let umaResourceCache = new Map();
 
 async function readUmaResourceJson(name) {
@@ -259,7 +259,9 @@ app.get("/api/v4/resources/:name", async (c) => {
   try {
     const body = await readUmaResourceJson(name);
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-    return c.json(body);
+    // Parent Share needs pair scores only; avoid transferring the much larger
+    // three-character table used by the full lineage planner.
+    return c.json(name === "affinity" ? { chars: body.chars, aff2: body.aff2 } : body);
   } catch (err) {
     return c.json(
       { error: err?.message || `Failed to load ${name}` },

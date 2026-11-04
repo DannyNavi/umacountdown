@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { e as getCharaByBaseId } from "../../data.js";
+import { calculateParentAffinity } from "../parentAffinity.js";
 import "./Parent.css";
 
 const STAT_FACTORS = {
@@ -395,7 +396,7 @@ function sparkGroups(prefix, inheritance) {
   ];
 }
 
-function PartnerCard({ payload, factorById, hideRaceSparks, mobileRow }) {
+function PartnerCard({ payload, factorById, hideRaceSparks, mobileRow, affinityResources }) {
   const inheritance = pickInheritance(payload);
   if (!inheritance) return null;
 
@@ -419,6 +420,7 @@ function PartnerCard({ payload, factorById, hideRaceSparks, mobileRow }) {
     inheritance.right_white_factors;
   const matchedIds = matchingWhiteIds(inheritance);
   const hasTree = Boolean(hasLeft || hasRight);
+  const affinity = calculateParentAffinity(inheritance, affinityResources?.affinity, affinityResources?.races);
 
   return (
     <article
@@ -427,6 +429,15 @@ function PartnerCard({ payload, factorById, hideRaceSparks, mobileRow }) {
       }`}
     >
       <div className="Parent-details-bar">Parent</div>
+      <div className="Parent-affinity" aria-label="Parent affinity">
+        {affinity ? (
+          <>
+            <strong>{affinity.total} affinity</strong>
+            <span>{affinity.stored ? "Stored score from uma.moe" :
+              `Base ${affinity.base} + shared G1 races ${affinity.race} · P1 ${affinity.left} · P2 ${affinity.right}`}</span>
+          </>
+        ) : <span>Affinity unavailable</span>}
+      </div>
 
       <div className="Parent-tree">
         <div className="Parent-tree-main">
@@ -510,6 +521,7 @@ export default function Parent() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [affinityResources, setAffinityResources] = useState(null);
   const [hideRaceSparks, setHideRaceSparks] = useState(readHideRaceSparksPreference);
   const [mobileRow, setMobileRow] = useState(readMobileRowPreference);
   const [factorById, setFactorById] = useState(() => {
@@ -574,6 +586,22 @@ export default function Parent() {
     setDraft(idFromQuery);
     setLookupId(idFromQuery);
   }, [idFromQuery]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadAffinity() {
+      const resources = await Promise.all(["affinity", "race_to_saddle_mapping"].map(async (name) => {
+        const response = await fetch(`/api/v4/resources/${name}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Affinity resources unavailable");
+        return response.json();
+      }));
+      if (!controller.signal.aborted) setAffinityResources({ affinity: resources[0], races: resources[1] });
+    }
+    loadAffinity().catch((err) => {
+      if (err.name !== "AbortError") console.warn("Failed to load affinity data", err);
+    });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!lookupId) {
@@ -763,6 +791,7 @@ export default function Parent() {
       {data ? (
         <PartnerCard
           payload={data}
+          affinityResources={affinityResources}
           factorById={factorById}
           hideRaceSparks={hideRaceSparks}
           mobileRow={mobileRow}

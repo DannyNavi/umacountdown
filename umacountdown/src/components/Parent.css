@@ -638,3 +638,16 @@ html.parent-page {
     margin: 0 0 0.4rem;
   }
 }
+.Parent-affinity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.8rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #ffffff20;
+}
+
+.Parent-affinity span {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
