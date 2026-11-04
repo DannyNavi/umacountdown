@@ -542,7 +542,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         const res = await umaGetJson(path);
         if (!res.ok) continue;
         const found = extractFound(res.body);
-        if (found && acceptFoundForKind(found, res.body, partnerId, idKind)) return found;
+        if (found) return found;
       }
     }
     return null;
@@ -681,34 +681,6 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
   }
 
   async function runLookupAttempt({ allowPersistedStream }) {
-    // API-key streams omit the share ID even for newly inserted parents.
-    // Snapshot saved accounts BEFORE posting: only a new account row created
-    // during this job can safely bypass the share-ID requirement. A recent
-    // row that already existed may belong to the preceding Partner ID.
-    let savedAccountsBefore = null;
-    if (idKind === ID_KIND_PARTNER && authKey) {
-      try {
-        const saved = await umaGetJson("/api/v4/partner/saved");
-        const validList = Array.isArray(saved.body) ||
-          [saved.body?.partners, saved.body?.items, saved.body?.results, saved.body?.data].some(Array.isArray);
-        if (saved.ok && validList) {
-          savedAccountsBefore = new Set(savedList(saved.body).flatMap(accountIds));
-        }
-      } catch {
-        // Without a baseline, retain strict share matching.
-      }
-    }
-    const startedAt = Date.now();
-    const isNewPersistedResult = (found) => {
-      const row = found?.inheritance;
-      const ids = accountIds(row);
-      const updatedAt = Date.parse(row?.updated_at || row?.last_updated || row?.created_at || "");
-      return savedAccountsBefore !== null && ids.length > 0 &&
-        ids.every((id) => !savedAccountsBefore.has(id)) &&
-        Number.isFinite(updatedAt) &&
-        updatedAt >= Math.floor(startedAt / 1000) * 1000 &&
-        updatedAt <= Date.now() + 1000;
-    };
     const startRes = await postLookup();
     let startBody = await readJsonSafe(startRes);
     if (!startRes.ok) {
@@ -799,8 +771,9 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
           fetchTaskResult(taskId),
           savedPromise,
         ]);
-        // A persisted stream without a share ID must be new relative to the
-        // pre-lookup snapshot, not just recently updated.
+        // Prefer share-matched saved. Trust the stream when allowed (including
+        // fresh API-key partner_inheritance). Reject stale account parents when
+        // allowPersistedStream is false.
         const streamFound =
           streamed.found || extractFound(streamed.body) || taskHit;
         const streamOk =
@@ -808,7 +781,6 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
           (allowPersistedStream ||
             !persisted ||
             idKind !== ID_KIND_PARTNER ||
-            isNewPersistedResult(streamFound) ||
             citesPartnerShare(streamed.body, partnerId) ||
             citesPartnerShare(
               { inheritance: streamFound.inheritance },
@@ -839,10 +811,11 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     };
   }
 
-  // A recently saved trainer parent can belong to the previous Partner ID.
-  // Require share identity or a newly inserted row absent before this job.
+  // Trust the first stream. API-key Partner lookups used to always DELETE the
+  // trainer's saved rows and run a second full lookup (~2× latency / timeouts).
+  // Only clear+retry when the returned partner_inheritance is stale.
   let attempt = await runLookupAttempt({
-    allowPersistedStream: false,
+    allowPersistedStream: true,
   });
 
   function accountIdFromAttempt(value) {
@@ -865,13 +838,14 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         { inheritance, ...(attempt.found || {}) },
         partnerId
       );
-    // Unmatched account-level partner_inheritance (e.g. Ryan vs Agnes) must be
+    // Stale account-level partner_inheritance (e.g. Ryan vs Agnes) must be
     // cleared so the next lookup scrapes the live share. Do NOT run a second
     // full uma.moe job in this request — that doubles latency and 504s under
     // the Worker wall clock. The client retries once after this response.
     const staleAccountParent =
-      attempt.rejectedPersistedParent &&
-      !citesShare;
+      Boolean(attempt.found) &&
+      !citesShare &&
+      isStalePersistedInheritance(inheritance);
     if (accountId && staleAccountParent) {
       const cleared = await deleteSavedByAccount(String(accountId));
       if (cleared) {

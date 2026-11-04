@@ -503,7 +503,7 @@ test("lookup clears stale persisted saves and asks the client to retry once", as
   assert.equal(result.body.cleared_saved_account_id, "979761542599");
 });
 
-test("lookup rejects a previous ID persisted seconds ago and requests a retry", async () => {
+test("lookup trusts a fresh persisted stream without a second Partner ID job", async () => {
   let posts = 0;
   let deleted = false;
   const fetchImpl = async (url, init) => {
@@ -535,7 +535,7 @@ test("lookup rejects a previous ID persisted seconds ago and requests a retry", 
       deleted = true;
       return jsonResponse({ deleted: 1 });
     }
-    if (path === "/api/v4/partner/saved") return jsonResponse(posts === 0 ? [{ account_id: "979761542599", main_parent_id: 102701 }] : []);
+    if (path === "/api/v4/partner/saved") return jsonResponse([]);
     return jsonResponse({ result: { inheritance: null } });
   };
 
@@ -545,51 +545,11 @@ test("lookup rejects a previous ID persisted seconds ago and requests a retry", 
     savedAttempts: 1,
     taskAttempts: 1,
   });
-  assert.equal(deleted, true);
+  assert.equal(deleted, false);
   assert.equal(posts, 1);
-  assert.equal(result.ok, false);
-  assert.equal(result.status, 503);
-  assert.equal(result.body.retry, true);
-});
-
-test("a cleared account succeeds on retry, but the next Partner ID cannot reuse it", async () => {
-  let savedRow = { account_id: "711269443937", main_parent_id: 102701,
-    updated_at: new Date().toISOString() };
-  let deletes = 0;
-  let posts = 0;
-  const fetchImpl = async (url, init) => {
-    const path = String(url).replace("https://uma.moe", "");
-    if (path === "/api/v4/partner/saved") return jsonResponse(savedRow ? [savedRow] : []);
-    if (path === "/api/v4/partner/saved/711269443937" && init?.method === "DELETE") {
-      deletes++;
-      savedRow = null;
-      return jsonResponse({ deleted: 1 });
-    }
-    if (path === "/api/v4/partner/lookup") {
-      posts++;
-      return jsonResponse({ task_id: posts, status: "pending", will_persist: true });
-    }
-    if (path.endsWith("/stream")) {
-      savedRow ??= { account_id: "711269443937", main_parent_id: 106801,
-        updated_at: new Date().toISOString() };
-      return sseResponse(`event: completed\ndata: ${JSON.stringify({
-        status: "completed", inheritance: savedRow,
-      })}\n\n`);
-    }
-    return jsonResponse({ result: { inheritance: null } });
-  };
-  const deps = { fetch: fetchImpl, retryDelayMs: 0, savedAttempts: 1, taskAttempts: 1 };
-  const first = await lookupPracticePartner("test", "451240171", deps);
-  assert.equal(first.status, 503);
-  assert.equal(first.body.retry, true);
-  const retry = await lookupPracticePartner("test", "451240171", deps);
-  assert.equal(retry.ok, true);
-  assert.equal(retry.body.inheritance.main_parent_id, 106801);
-  assert.equal(deletes, 1);
-  const nextId = await lookupPracticePartner("test", "661228465", deps);
-  assert.equal(nextId.status, 503);
-  assert.equal(nextId.body.inheritance, undefined);
-  assert.equal(deletes, 2);
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 106801);
+  assert.equal(result.body.cleared_saved_account_id, undefined);
 });
 
 test("isStalePersistedInheritance treats missing timestamps as fresh scrapes", () => {
@@ -644,7 +604,7 @@ test("lookup returns inheritance from an immediate-complete POST and skips the s
 
   assert.equal(result.ok, true);
   assert.equal(result.status, 200);
-  assert.deepEqual(calls, ["/api/v4/partner/saved", "/api/v4/partner/lookup"]);
+  assert.deepEqual(calls, ["/api/v4/partner/lookup"]);
   assert.equal(result.body.trainer_name, "DannyN");
   assert.equal(result.body.result.account_id, "711269443937");
   assert.equal(result.body.inheritance.main_parent_id, 102001);
@@ -871,7 +831,7 @@ test("lookup rejects an account-keyed stream parent and uses the Partner ID save
   assert.equal(result.body.inheritance.main_parent_id, 101901);
 });
 
-test("lookup rejects an unidentified persisted stream without a share-matched saved row", async () => {
+test("lookup uses the Partner ID job stream when no share-matched saved row exists", async () => {
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
     if (path === "/api/v4/partner/lookup") {
@@ -912,9 +872,9 @@ test("lookup rejects an unidentified persisted stream without a share-matched sa
     savedAttempts: 1,
     taskAttempts: 1,
   });
-  assert.equal(result.ok, false);
-  assert.equal(result.status, 503);
-  assert.equal(result.body.retry, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.body.inheritance.main_parent_id, 102701);
+  assert.equal(result.body.trainer_name, "Ser Rj");
 });
 
 test("lookup does not use a trainer account parent after a queued Partner ID job", async () => {
