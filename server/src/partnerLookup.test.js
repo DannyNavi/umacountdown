@@ -503,7 +503,7 @@ test("lookup clears stale persisted saves and asks the client to retry once", as
   assert.equal(result.body.cleared_saved_account_id, "979761542599");
 });
 
-test("lookup trusts a fresh persisted stream without a second Partner ID job", async () => {
+test("lookup rejects a previous ID persisted seconds ago and requests a retry", async () => {
   let posts = 0;
   let deleted = false;
   const fetchImpl = async (url, init) => {
@@ -545,11 +545,11 @@ test("lookup trusts a fresh persisted stream without a second Partner ID job", a
     savedAttempts: 1,
     taskAttempts: 1,
   });
-  assert.equal(deleted, false);
+  assert.equal(deleted, true);
   assert.equal(posts, 1);
-  assert.equal(result.ok, true);
-  assert.equal(result.body.inheritance.main_parent_id, 106801);
-  assert.equal(result.body.cleared_saved_account_id, undefined);
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(result.body.retry, true);
 });
 
 test("isStalePersistedInheritance treats missing timestamps as fresh scrapes", () => {
@@ -831,7 +831,7 @@ test("lookup rejects an account-keyed stream parent and uses the Partner ID save
   assert.equal(result.body.inheritance.main_parent_id, 101901);
 });
 
-test("lookup uses the Partner ID job stream when no share-matched saved row exists", async () => {
+test("lookup rejects an unidentified persisted stream without a share-matched saved row", async () => {
   const fetchImpl = async (url) => {
     const path = String(url).replace("https://uma.moe", "");
     if (path === "/api/v4/partner/lookup") {
@@ -872,9 +872,9 @@ test("lookup uses the Partner ID job stream when no share-matched saved row exis
     savedAttempts: 1,
     taskAttempts: 1,
   });
-  assert.equal(result.ok, true);
-  assert.equal(result.body.inheritance.main_parent_id, 102701);
-  assert.equal(result.body.trainer_name, "Ser Rj");
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(result.body.retry, true);
 });
 
 test("lookup does not use a trainer account parent after a queued Partner ID job", async () => {

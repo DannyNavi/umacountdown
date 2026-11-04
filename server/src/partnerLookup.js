@@ -542,7 +542,7 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         const res = await umaGetJson(path);
         if (!res.ok) continue;
         const found = extractFound(res.body);
-        if (found) return found;
+        if (found && acceptFoundForKind(found, res.body, partnerId, idKind)) return found;
       }
     }
     return null;
@@ -811,11 +811,10 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
     };
   }
 
-  // Trust the first stream. API-key Partner lookups used to always DELETE the
-  // trainer's saved rows and run a second full lookup (~2× latency / timeouts).
-  // Only clear+retry when the returned partner_inheritance is stale.
+  // A recently saved trainer parent can belong to the previous Partner ID.
+  // Persisted streams must identify the requested share regardless of age.
   let attempt = await runLookupAttempt({
-    allowPersistedStream: true,
+    allowPersistedStream: false,
   });
 
   function accountIdFromAttempt(value) {
@@ -838,14 +837,13 @@ export async function lookupPracticePartner(apiKey, partnerId, deps = {}) {
         { inheritance, ...(attempt.found || {}) },
         partnerId
       );
-    // Stale account-level partner_inheritance (e.g. Ryan vs Agnes) must be
+    // Unmatched account-level partner_inheritance (e.g. Ryan vs Agnes) must be
     // cleared so the next lookup scrapes the live share. Do NOT run a second
     // full uma.moe job in this request — that doubles latency and 504s under
     // the Worker wall clock. The client retries once after this response.
     const staleAccountParent =
-      Boolean(attempt.found) &&
-      !citesShare &&
-      isStalePersistedInheritance(inheritance);
+      (Boolean(attempt.found) || attempt.rejectedPersistedParent) &&
+      !citesShare;
     if (accountId && staleAccountParent) {
       const cleared = await deleteSavedByAccount(String(accountId));
       if (cleared) {
