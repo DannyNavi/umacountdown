@@ -4,15 +4,17 @@ const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 export function quotaWeek(now = Date.now()) {
   // Store JST calendar dates at UTC midnight for date arithmetic and formatting.
   const today = Math.floor((now + JST_OFFSET_MS) / DAY_MS) * DAY_MS;
-  const daysSinceMonday = (new Date(today).getUTCDay() + 6) % 7;
-  const start = today - daysSinceMonday * DAY_MS;
+  // The Exiles report uses Monday's snapshot to close the week and switches on Tuesday.
+  const yesterday = new Date(today - DAY_MS);
+  const daysSinceMonday = (yesterday.getUTCDay() + 6) % 7;
+  const start = yesterday.getTime() - daysSinceMonday * DAY_MS;
   return {
     today,
     start,
-    end: start + 6 * DAY_MS,
+    end: start + 7 * DAY_MS,
     // The competition month and its daily slots start on the 2nd in JST.
     currentMonth: new Date(today - DAY_MS),
-    baselineMonth: new Date(start - 2 * DAY_MS),
+    baselineMonth: new Date(start - DAY_MS),
   };
 }
 
@@ -39,7 +41,7 @@ function baselineFans(member, date) {
 
 export function weeklyFanProgress(member, previousMonthMember, clubName, week) {
   const latest = latestFanSnapshot(member, week.today);
-  const baselineDate = week.start - DAY_MS;
+  const baselineDate = week.start;
   const baseline = baselineFans(member, baselineDate)
     ?? baselineFans(previousMonthMember, baselineDate);
   if (!latest || baseline === null || latest.date < baselineDate || latest.fans < baseline) {
