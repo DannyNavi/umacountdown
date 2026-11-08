@@ -2,6 +2,10 @@
   max-width: 38rem;
 }
 
+.ExileQuota-wrap h1 {
+  padding-bottom: 0.75rem;
+}
+
 .ExileQuota-form {
   margin-bottom: 1.5rem;
 }
