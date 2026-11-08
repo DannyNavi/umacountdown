@@ -8,10 +8,12 @@ export function quotaWeek(now = Date.now()) {
   const yesterday = new Date(today - DAY_MS);
   const daysSinceMonday = (yesterday.getUTCDay() + 6) % 7;
   const start = yesterday.getTime() - daysSinceMonday * DAY_MS;
+  const end = start + 7 * DAY_MS;
   return {
     today,
     start,
-    end: start + 7 * DAY_MS,
+    end,
+    resetAt: end + DAY_MS - JST_OFFSET_MS,
     // The competition month and its daily slots start on the 2nd in JST.
     currentMonth: new Date(today - DAY_MS),
     baselineMonth: new Date(start - DAY_MS),

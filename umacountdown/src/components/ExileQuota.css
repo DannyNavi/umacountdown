@@ -6,6 +6,11 @@
   margin-bottom: 1.5rem;
 }
 
+.ExileQuota-countdown {
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
 .ExileQuota-form label {
   display: block;
   margin-bottom: 0.4rem;

@@ -7,7 +7,9 @@ test("the report keeps the closing week through Monday JST and switches on Tuesd
   const afterReset = quotaWeek(Date.parse("2026-11-09T15:00:00Z"));
   assert.equal(beforeReset.start, Date.UTC(2026, 10, 2));
   assert.equal(beforeReset.end, Date.UTC(2026, 10, 9));
+  assert.equal(beforeReset.resetAt, Date.parse("2026-11-09T15:00:00Z"));
   assert.equal(afterReset.start, Date.UTC(2026, 10, 9));
+  assert.equal(afterReset.resetAt, Date.parse("2026-11-16T15:00:00Z"));
 });
 
 test("weekly progress uses the Monday baseline and each club's target", () => {

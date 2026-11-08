@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EXILE_CIRCLE_IDS, fetchExileCircle } from "../exile/circles";
 import { latestFanSnapshot, quotaWeek, weeklyFanProgress } from "../exile/weeklyFans";
+import { formatRemaining } from "../formatRemaining";
 import "./Club.css";
 import "./ExileQuota.css";
 
@@ -10,6 +11,23 @@ const dates = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   timeZone: "UTC",
 });
+
+function ResetCountdown() {
+  const [now, setNow] = useState(Date.now);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <p className="Club-lead">
+      Next reset in <strong className="ExileQuota-countdown" role="timer">
+        {formatRemaining(quotaWeek(now).resetAt - now)}
+      </strong>
+    </p>
+  );
+}
 
 function matchingMembers(circles, username, week) {
   const matches = new Map();
@@ -79,6 +97,7 @@ export default function ExileQuota() {
     <main className="Club-page">
       <div className="Club-wrap ExileQuota-wrap">
         <h1>Exile Quota Check</h1>
+        <ResetCountdown />
 
         <form className="ExileQuota-form" onSubmit={handleSubmit}>
           <label htmlFor="exile-username">Trainer username</label>
