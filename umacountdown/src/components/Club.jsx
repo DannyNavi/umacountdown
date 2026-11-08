@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { circleListItems, estimateCombinedRank } from "../clubRank";
+import { EXILE_CIRCLE_IDS } from "../exile/circles";
 import "./Club.css";
 
-const CIRCLE_IDS = [619284325, 676001972, 702265397, 868091297];
 
 const SAME_PERSON_ALIASES = [
   ["AntWolf", "LiliWeiss", "Scarlet Shadow", "Red Hood"],
@@ -140,7 +140,7 @@ async function loadCombinedRank(monthlyFans) {
       const lastPoints = Number(items[items.length - 1]?.monthly_point) || 0;
       if (lastPoints <= monthlyFans) break;
     }
-    return estimateCombinedRank(monthlyFans, ladder, CIRCLE_IDS);
+    return estimateCombinedRank(monthlyFans, ladder, EXILE_CIRCLE_IDS);
   } catch {
     return null;
   }
@@ -159,7 +159,7 @@ export default function Club() {
     async function load() {
       try {
         const responses = await Promise.all(
-          CIRCLE_IDS.map((id) =>
+          EXILE_CIRCLE_IDS.map((id) =>
             fetch(`/api/v4/circles?circle_id=${id}`).then(async (res) => {
               const body = await res.json().catch(() => ({}));
               if (!res.ok) {

@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css"
 import HomePage from "./components/HomePage";
@@ -10,7 +9,7 @@ import Ozy from "./components/Ozy";
 import Shaz from "./components/Shaz";
 import Club from "./components/Club";
 import Parent, { ParentIdRedirect } from "./components/Parent";
-import ExileWorld from "./components/ExileWorld";
+import ExileQuota from "./components/ExileQuota";
 import VisitTracker from "./components/VisitTracker";
 
 export default function App() {
@@ -30,7 +29,7 @@ export default function App() {
           <Route path="club" element={<Club/>}/>
           <Route path="parent" element={<Parent/>}/>
           <Route path="parent/:id" element={<ParentIdRedirect/>}/>
-          <Route path="exile" element={<ExileWorld/>}/>
+          <Route path="exile" element={<ExileQuota/>}/>
         </Routes>
       </BrowserRouter>
     </div>

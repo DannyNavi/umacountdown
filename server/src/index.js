@@ -206,8 +206,14 @@ app.get("/api/v4/circles", async (c) => {
     return c.json({ error: "circle_id is required" }, 400);
   }
 
+  const params = new URLSearchParams({ circle_id: circleId });
+  for (const key of ["year", "month"]) {
+    const value = c.req.query(key);
+    if (value) params.set(key, value);
+  }
+
   const response = await fetch(
-    `https://uma.moe/api/v4/circles?circle_id=${encodeURIComponent(circleId)}`,
+    `https://uma.moe/api/v4/circles?${params}`,
     {
       headers: {
         "X-API-Key": apiKey,

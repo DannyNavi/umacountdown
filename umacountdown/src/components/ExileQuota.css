@@ -1,0 +1,52 @@
+.ExileQuota-wrap {
+  max-width: 38rem;
+}
+
+.ExileQuota-form {
+  margin-bottom: 1.5rem;
+}
+
+.ExileQuota-form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--text-h);
+}
+
+.ExileQuota-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ExileQuota-fields input,
+.ExileQuota-fields button {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+.ExileQuota-fields input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+.ExileQuota-fields button {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ExileQuota-fields button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.ExileQuota-result .ExileQuota-remaining {
+  color: var(--accent);
+  font-size: 1.35rem;
+}
