@@ -129,10 +129,6 @@ export default function ExileQuota() {
             </>
           )}
         </div>
-        <p className="Club-lead">
-          Weekly targets are 22 million for Exile 1, 2 and 3, and 14 million for Exile Dawn.
-          Monday's snapshot closes the week. The lookup switches to the next week on Tuesday JST.
-        </p>
       </div>
     </main>
   );
