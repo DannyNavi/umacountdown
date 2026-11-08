@@ -78,8 +78,7 @@ export default function ExileQuota() {
   return (
     <main className="Club-page">
       <div className="Club-wrap ExileQuota-wrap">
-        <h1>Exile Weekly Fan Quota</h1>
-        <p className="Club-lead">Enter your in-game username to check how many fans you still need this week.</p>
+        <h1>Exile Quota Check</h1>
 
         <form className="ExileQuota-form" onSubmit={handleSubmit}>
           <label htmlFor="exile-username">Trainer username</label>
