@@ -5,6 +5,7 @@ import { formatRemaining } from "../formatRemaining";
 import "./Club.css";
 import "./ExileQuota.css";
 
+const USERNAME_STORAGE_KEY = "exileQuotaUsername";
 const fans = new Intl.NumberFormat("en-US");
 const dates = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -70,7 +71,13 @@ async function lookup(username, week) {
 }
 
 export default function ExileQuota() {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(() => {
+    try {
+      return localStorage.getItem(USERNAME_STORAGE_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -79,6 +86,12 @@ export default function ExileQuota() {
     event.preventDefault();
     const name = username.trim();
     if (!name || loading) return;
+
+    try {
+      localStorage.setItem(USERNAME_STORAGE_KEY, name);
+    } catch {
+      // The lookup still works when browser storage is unavailable.
+    }
 
     const week = quotaWeek();
     setLoading(true);
